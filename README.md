@@ -20,7 +20,7 @@ El trabajo se organiza en tres bloques:
 |--------|-----|
 | Andy | _Pendiente_ |
 | Guillem | _Pendiente_ |
-
+| Dennis | _Pendiente_ |
 ## Estructura
 
 ```
