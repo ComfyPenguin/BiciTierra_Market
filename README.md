@@ -89,4 +89,4 @@ Ejecutar los notebooks desde la carpeta `notebooks/` (las rutas son relativas a 
 
 La estructura pedagógica y criterios de trabajo se basan en los materiales de:
 
-- https://github.com/ieseljust/iabd-26-27/
+- https://comfypenguin.github.io/iabd-26-27/
