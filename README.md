@@ -89,4 +89,5 @@ Ejecutar los notebooks desde la carpeta `notebooks/` (las rutas son relativas a 
 
 La estructura pedagógica y criterios de trabajo se basan en los materiales de:
 
-- https://comfypenguin.github.io/iabd-26-27/
+- [Proyecto + Documentación de este año](https://comfypenguin.github.io/iabd-26-27/)
+- [Documentación de años anteriores](https://fideldam2021.github.io/SAA2526/)
