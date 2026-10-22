@@ -91,3 +91,4 @@ La estructura pedagógica y criterios de trabajo se basan en los materiales de:
 
 - [Proyecto + Documentación de este año](https://comfypenguin.github.io/iabd-26-27/)
 - [Documentación de años anteriores](https://fideldam2021.github.io/SAA2526/)
+- [Documentación de años anteriores de programación IA](https://ce-bdia.github.io/pia/)
