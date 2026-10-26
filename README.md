@@ -49,16 +49,28 @@ y su diccionario de datos en `data/originales/DICCIONARI_DADES.md`.
 
 ## Dependencias
 
-- Python 3.10+
-- Jupyter Notebook / JupyterLab
-- `pandas`
-- `numpy`
-- `matplotlib` (si se usan visualizaciones)
-- `scikit-learn` (si se amplía el modelado)
+El entorno de Python se gestiona con [uv](https://docs.astral.sh/uv/). Las dependencias
+(`pandas`, `numpy`, `matplotlib`, `scikit-learn`, `jupyter`, `ipykernel`) están en
+`pyproject.toml` y `uv.lock`; uv descarga la versión de Python necesaria si no la tienes.
+
+### Iniciar el entorno
 
 ```bash
-pip install pandas numpy matplotlib scikit-learn jupyter
+# 1. Instalar uv (si no lo tienes): https://docs.astral.sh/uv/getting-started/installation/
+# 2. Crear .venv e instalar las dependencias
+uv sync
+# 3. Lanzar Jupyter
+uv run jupyter lab
 ```
+
+Para usarlo desde VS Code u otro editor, selecciona el intérprete `.venv/bin/python`
+como kernel del notebook. Si quieres registrarlo como kernel de Jupyter:
+
+```bash
+uv run python -m ipykernel install --user --name bicitierra --display-name "BiciTierra (.venv)"
+```
+
+Para añadir una librería nueva: `uv add <paquete>` (y commitea `pyproject.toml` y `uv.lock`).
 
 ## Orden de ejecución
 
