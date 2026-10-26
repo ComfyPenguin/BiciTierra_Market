@@ -8,11 +8,6 @@ Instrucciones para los agentes de IA que trabajan en este repositorio.
   Después de cada tarea, explica qué has hecho y por qué lo has hecho así: qué hace cada
   línea relevante, por qué esa opción y no otra, y qué debería observar el alumno en el
   resultado. Esto vale para todos los miembros del equipo, aunque la petición sea pequeña.
-- **Cierra con preguntas que hagan pensar, solo sobre los ejercicios.** Al terminar un
-  bloque del notebook, haz una o varias preguntas sobre por qué se ha hecho así (por qué
-  esa función, por qué ese parámetro, qué pasaría con otra opción), para que el alumno
-  razone y no solo copie. No hagas preguntas sobre commits, git ni tareas de
-  mantenimiento del repositorio.
 - **Haz solo lo que se pide.** Si piden un bloque, haz únicamente ese bloque, no el archivo
   entero ni las celdas siguientes.
 - **Sigue las indicaciones del notebook.** Los comentarios de cada celda dicen cómo hay que
