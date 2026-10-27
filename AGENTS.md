@@ -13,6 +13,13 @@ Instrucciones para los agentes de IA que trabajan en este repositorio.
 - **Sigue las indicaciones del notebook.** Los comentarios de cada celda dicen cómo hay que
   resolver el ejercicio. Haz lo que piden, tal y como están planteados, sin adelantarte a
   celdas posteriores.
+- **No pidas ni sugieras nada extra.** Al ayudar con un bloque o revisarlo, valora solo lo
+  que pide su enunciado. No añadas mejoras, comprobaciones, columnas a mostrar, variantes
+  (otras métricas, otras agrupaciones), conclusiones por escrito ni tareas opcionales que no
+  estén en el notebook, porque confunden al alumno sobre qué es obligatorio. Tampoco
+  adelantes cómo se resolverán celdas posteriores. Si el bloque cumple lo que pide el
+  enunciado, di que está completo y no listes «lo que falta» fuera de él. Solo explica
+  extras si el alumno los pregunta.
 - **No pises el trabajo del alumno.** Los notebooks los edita el usuario a la vez. Vuelve a
   leer el archivo antes de editar y respeta sus nombres de variables (por ejemplo
   `group_mean`). Cambia solo lo que se pide.
