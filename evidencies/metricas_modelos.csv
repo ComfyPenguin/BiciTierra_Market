@@ -1,0 +1,9 @@
+model,MAE_units,WAPE_pct,periodo
+ridge_100,12.05,11.61,validación 2025
+ridge_10,12.37,11.92,validación 2025
+ridge_1,12.43,11.98,validación 2025
+seasonal_lag12,17.4,16.77,validación 2025
+group_mean,18.75,18.06,validación 2025
+ridge_100,16.14,13.53,prueba ene–jun 2026
+seasonal_lag12,21.24,17.81,prueba ene–jun 2026
+group_mean,26.93,22.58,prueba ene–jun 2026
