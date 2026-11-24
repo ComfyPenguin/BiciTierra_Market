@@ -1,0 +1,1314 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BiciTierra Market · Defensa</title>
+<style>
+  /* Colores por función: superficies y texto, tres series (urbana, montaña, eléctrica) y alerta */
+  :root {
+    color-scheme: dark;
+    --fondo:#121211; --superficie:#1a1a19; --superficie-2:#242422; --borde:#2f2f2c;
+    --texto:#f0efec; --texto-2:#c3c2b7; --texto-3:#8f8e86;
+    --serie1:#3987e5; --serie2:#d95926; --serie3:#199e70; --gris:#6b6a64; --critico:#d03b3b;
+    --seq-bajo:#202a38; --seq-alto:#9ec5f4; --vacio:#262624; --negativo:#e66767;
+  }
+  :root[data-tema="claro"] {
+    color-scheme: light;
+    --fondo:#f4f3f0; --superficie:#fcfcfb; --superficie-2:#efeee9; --borde:#e2e1dc;
+    --texto:#0b0b0b; --texto-2:#52514e; --texto-3:#6f6e69;
+    --serie1:#2a78d6; --serie2:#eb6834; --serie3:#1baf7a; --gris:#a8a7a1;
+    --seq-bajo:#e3edfb; --seq-alto:#184f95; --vacio:#ebeae5; --negativo:#e34948;
+  }
+  :root { --urban:var(--serie1); --electric:var(--serie2); --mountain:var(--serie3); }
+
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--fondo); color:var(--texto); }
+  /* Todo se mide en rem, y rem sale de la letra de <html>. Esa letra sigue al lado que limita:
+     el ancho en pantallas 16:9 o más altas (4:3, 16:10) y la altura en ventanas más anchas o bajas. Sin tope: en 4K crece igual.
+     A 1600×900 vale 16 px; en cualquier otro tamaño la diapositiva se escala entera y nada se sale. */
+  html { font-size:max(10px, min(1vw, 1.78vh)); }
+  body { font:400 1.1rem/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; }
+
+  /* Diapositivas: una visible cada vez */
+  .diapo { position:fixed; inset:0; padding:5.5vh 5.5vw 8vh; display:flex; flex-direction:column; gap:2vh; isolation:isolate;
+           opacity:0; visibility:hidden; transform:translateY(16px);
+           transition:opacity .5s ease, transform .5s ease, visibility 0s linear .5s; }
+  .diapo.actual { opacity:1; visibility:visible; transform:none; transition:opacity .5s ease, transform .5s ease; }
+  .ante { font-size:.78rem; font-weight:650; letter-spacing:.14em; text-transform:uppercase; color:var(--texto-3); }
+  h1 { margin:0; font-size:clamp(3rem, 8vw, 8rem); line-height:.95; letter-spacing:-.04em; font-weight:800; }
+  h2 { margin:0; font-size:2.3rem; line-height:1.12; letter-spacing:-.025em; font-weight:750; max-width:34ch; text-wrap:balance; }
+  h3 { margin:0; font-size:1.05rem; font-weight:700; }
+  .lead { margin:0; font-size:1.12rem; color:var(--texto-2); max-width:64ch; }
+  .cuerpo { flex:1; min-height:0; display:grid; gap:1.2rem; }
+  .tarjeta { background:var(--superficie); border:1px solid var(--borde); border-radius:16px; padding:1.1rem 1.3rem;
+             min-width:0; min-height:0; display:flex; flex-direction:column; gap:.8rem; }
+  .cifras { display:flex; gap:1rem; }
+  .cifras .tarjeta { flex:1; gap:.25rem; }
+  .cifra { font-size:2.5rem; font-weight:750; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums; }
+  .cifra.grande { font-size:5.5rem; }
+  .etq { color:var(--texto-2); font-size:.88rem; }
+  .nota { margin:0; color:var(--texto-3); font-size:.85rem; }
+  .chip { display:inline-flex; align-items:center; gap:.45rem; padding:.25rem .75rem; border-radius:99px; border:1px solid var(--borde);
+          color:var(--texto-2); font-size:.82rem; width:fit-content; background:var(--superficie); }
+  .punto { width:.7rem; height:.7rem; border-radius:50%; background:var(--c); display:inline-block; flex:none; }
+  .cab-tarjeta { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+
+  /* Gráficos SVG */
+  .graf { flex:1; min-height:0; position:relative; }
+  .graf > svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .leyenda { display:flex; gap:1.2rem; flex-wrap:wrap; font-size:.88rem; color:var(--texto-2); }
+  .leyenda span { display:inline-flex; align-items:center; gap:.45rem; }
+  .clave-linea { width:1.4rem; border-top:3px solid var(--c); display:inline-block; }
+  .clave-linea.disc { border-top-style:dashed; }
+  svg text { fill:var(--texto-3); font-size:13px; font-family:inherit; }
+  svg text.fin { fill:var(--texto-2); font-size:15px; font-weight:600; }
+  svg .rejilla { stroke:var(--borde); stroke-width:1; }
+  svg .trazo { fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+  .diapo.actual svg .dibujar { stroke-dasharray:1; stroke-dashoffset:1; animation:dibujar 1.8s cubic-bezier(.4,0,.2,1) forwards; }
+  .diapo svg .aparece { opacity:0; }
+  .diapo.actual svg .aparece { animation:aparecer .6s ease 1.3s forwards; }
+  @keyframes dibujar { to { stroke-dashoffset:0; } }
+  @keyframes aparecer { to { opacity:1; } }
+
+  #tip { position:fixed; z-index:50; pointer-events:none; background:var(--superficie-2); border:1px solid var(--borde); border-radius:10px;
+         padding:.55rem .75rem; font-size:.85rem; box-shadow:0 8px 24px #0005; min-width:11rem; }
+  #tip b { display:block; margin-bottom:.3rem; }
+  #tip .fila { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  #tip .fila > span:first-child { display:inline-flex; align-items:center; gap:.4rem; color:var(--texto-2); }
+  #tip .num { font-variant-numeric:tabular-nums; font-weight:650; }
+
+  /* Pie, progreso y notas del presentador */
+  .pie { position:fixed; left:5.5vw; right:5.5vw; bottom:2.4vh; display:flex; justify-content:space-between; font-size:.78rem;
+         color:var(--texto-3); z-index:10; pointer-events:none; }
+  .progreso { position:fixed; left:0; bottom:0; height:3px; background:var(--serie1); transition:width .5s ease; z-index:10; }
+  #notas { position:fixed; left:1rem; right:1rem; bottom:1rem; z-index:40; background:var(--superficie-2); border:1px solid var(--borde);
+           border-radius:14px; padding:1rem 1.2rem; box-shadow:0 12px 40px #0007; max-height:42vh; overflow:auto; }
+  #notas header { display:flex; gap:1.4rem; flex-wrap:wrap; align-items:baseline; font-size:.85rem; color:var(--texto-2); margin-bottom:.4rem; }
+  #notas header b { color:var(--texto); font-size:1rem; }
+  #notas p { margin:0; font-size:1.05rem; line-height:1.5; }
+  .pasado { color:var(--critico); font-weight:650; }
+
+  /* 1 · Portada */
+  .portada { justify-content:center; gap:1.4rem; }
+  .portada .lead { font-size:1.45rem; max-width:40ch; }
+  .equipo { margin:0; font-size:1.15rem; font-weight:600; }
+  .fondo-graf { position:absolute; left:48%; right:5.5vw; bottom:10vh; height:50vh; z-index:-1; }
+  .ayuda { position:absolute; top:5.5vh; right:5.5vw; margin:0; font-size:.8rem; color:var(--texto-3); }
+  kbd { font:inherit; border:1px solid var(--borde); border-radius:5px; padding:0 .35rem; background:var(--superficie); }
+
+  /* 2 · Las 18 series */
+  .dos { grid-template-columns:1fr 1fr; }
+  .rejilla18 { flex:1; display:grid; grid-template-columns:7rem repeat(3, 1fr); grid-template-rows:auto repeat(3, 1fr); gap:.6rem; }
+  .rejilla18 .cab { font-size:.75rem; color:var(--texto-3); text-transform:uppercase; letter-spacing:.1em; align-self:end; }
+  .rejilla18 .nom { display:flex; align-items:center; gap:.5rem; }
+  .mini { background:var(--superficie-2); border-radius:10px; padding:.4rem; min-height:3rem; position:relative; }
+  .mini svg { position:absolute; inset:.4rem; width:calc(100% - .8rem); height:calc(100% - .8rem); }
+
+  /* 3 · Mapa de calor */
+  .conmutador { display:inline-flex; background:var(--superficie-2); border-radius:99px; padding:3px; gap:2px; }
+  .conmutador button { border:0; background:transparent; padding:.3rem .9rem; border-radius:99px; cursor:pointer; color:var(--texto-2); }
+  .conmutador button[aria-pressed="true"] { background:var(--superficie); color:var(--texto); box-shadow:0 1px 3px #0004; }
+  .degradado { width:6rem; height:.6rem; border-radius:99px; display:inline-block; background:linear-gradient(in oklab 90deg, var(--seq-bajo), var(--seq-alto)); }
+  .cuadro { width:.8rem; height:.8rem; border-radius:3px; background:var(--critico); display:inline-block; }
+  .mapa { flex:1; min-height:0; display:grid; grid-template-columns:max-content repeat(66, minmax(0, 1fr)); grid-template-rows:auto;
+          grid-auto-rows:minmax(.7rem, 1fr); gap:2px; font-size:.72rem; }
+  .mapa .c { border-radius:2px; background-color:color-mix(in oklab, var(--seq-alto) var(--v), var(--seq-bajo));
+             transition:background-color .35s ease calc(var(--i) * 8ms); }
+  .mapa.roturas .c { background-color:var(--vacio); }
+  .mapa.roturas .c.r { background-color:var(--critico); }
+  .mapa .fila-etq { color:var(--texto-2); white-space:nowrap; display:flex; align-items:center; gap:.4rem; padding-right:.5rem; }
+  .mapa .anio { grid-row:1; color:var(--texto-3); border-left:1px solid var(--borde); padding-left:.3rem; }
+
+  /* 4 · Hipótesis */
+  .hipo { grid-template-columns:minmax(14rem, 1fr) 3.2fr; }
+  .pila { display:flex; flex-direction:column; gap:1.2rem; }
+  .pila .tarjeta { flex:1; justify-content:center; }
+
+  /* 5 · Sin trampas */
+  .cinco { grid-template-columns:1fr 1fr 1.15fr; grid-template-rows:auto 1fr; }
+  .tiempo { grid-column:1 / -1; }
+  .fases { display:flex; gap:4px; }
+  .fase { flex:var(--m) 1 0; min-width:0; }
+  .fase.ultima { flex:0 0 6.5rem; }
+  .fase .tira { height:1.1rem; border-radius:6px; background:var(--c); transform-origin:left; transform:scaleX(0);
+                transition:transform .7s cubic-bezier(.2,.8,.2,1) var(--d); }
+  .diapo.actual .fase .tira { transform:none; }
+  .fase.ultima .tira { background:transparent; border:2px dashed var(--texto-3); }
+  .fase b { display:block; margin-top:.45rem; font-size:.95rem; }
+  .fase span { color:var(--texto-3); font-size:.8rem; }
+  .vars { display:flex; flex-wrap:wrap; gap:.6rem; }
+  .vars .chip { font-size:.9rem; padding:.35rem .8rem; }
+  .si .chip::before { content:"✓"; color:var(--serie3); font-weight:800; }
+  .no .chip::before { content:"✕"; color:var(--critico); font-weight:800; }
+  .trampa { position:relative; overflow:hidden; }
+  .boton { border:1px solid var(--borde); background:var(--superficie-2); border-radius:10px; padding:.55rem 1rem; cursor:pointer; font-weight:650; width:fit-content; }
+  .boton:hover { border-color:var(--texto-3); }
+  .comparar { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:auto; }
+  .sello { position:absolute; right:1.2rem; top:1rem; border:3px solid var(--critico); color:var(--critico); border-radius:8px; padding:.3rem .7rem;
+           font-weight:800; letter-spacing:.08em; text-transform:uppercase; font-size:.95rem; transform:rotate(-8deg) scale(1.8); opacity:0;
+           transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .2s; pointer-events:none; text-align:center; }
+  .trampa.activa .sello { transform:rotate(-8deg) scale(1); opacity:1; }
+
+  /* 6 · Comparativa */
+  .seis { grid-template-columns:2.1fr 1fr; }
+  .barras { flex:1; display:flex; flex-direction:column; justify-content:center; gap:1.3rem; }
+  .fila-barra { display:grid; grid-template-columns:15rem 1fr; align-items:center; gap:1rem; }
+  .fila-barra .nombre { color:var(--texto-2); text-align:right; }
+  .fila-barra.elegido .nombre { color:var(--texto); font-weight:700; }
+  .pista-barra { display:flex; align-items:center; gap:.7rem; }
+  .barra { height:1.5rem; width:0; background:var(--c); border-radius:0 4px 4px 0; transition:width 1.1s cubic-bezier(.2,.8,.2,1) var(--d); }
+  .diapo.actual .barra { width:var(--w); }
+  .valor { font-variant-numeric:tabular-nums; font-weight:650; opacity:0; transition:opacity .4s ease calc(var(--d) + .8s); }
+  .diapo.actual .valor { opacity:1; }
+  .destacado { justify-content:center; }
+
+  /* 7 · Prueba final */
+  .siete { grid-template-columns:2fr 1fr; grid-template-rows:auto 1fr; }
+  .siete .cifras { grid-column:1 / -1; }
+  .duelo { display:flex; flex-direction:column; gap:.6rem; }
+  .duelo div { display:grid; grid-template-columns:5.5rem 1fr 3rem; align-items:center; gap:.6rem; color:var(--texto-2); font-size:.9rem; }
+  .duelo i { height:1.4rem; border-radius:0 4px 4px 0; background:var(--c); width:0; transition:width 1s cubic-bezier(.2,.8,.2,1) .4s; }
+  .diapo.actual .duelo i { width:var(--w); }
+  .duelo b { color:var(--texto); text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* 8 · Puesta en marcha: el Pipeline paso a paso */
+  .mono { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .mandos { display:flex; gap:.5rem; }
+  .tuberia { position:relative; display:flex; justify-content:space-between; padding:.9rem 0 .2rem; }
+  .via { position:absolute; top:calc(.9rem + 1.4rem - 2px); height:4px; border-radius:99px; background:var(--superficie-2); }
+  .via-relleno { position:absolute; left:0; top:-7px; height:18px; width:0; overflow:hidden; transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  .via-relleno::before { content:""; position:absolute; left:0; right:0; top:7px; height:4px; border-radius:99px;
+                         background:linear-gradient(90deg, color-mix(in oklab, var(--serie1) 35%, transparent), var(--serie1)); }
+  .via-relleno i { position:absolute; top:4px; left:-10px; width:10px; height:10px; border-radius:50%; background:#fff;
+                   box-shadow:0 0 8px 3px var(--serie1); animation:fluir 2.2s linear infinite; }
+  .via-relleno i:nth-child(2) { animation-delay:-.37s; } .via-relleno i:nth-child(3) { animation-delay:-.73s; }
+  .via-relleno i:nth-child(4) { animation-delay:-1.1s; } .via-relleno i:nth-child(5) { animation-delay:-1.47s; }
+  .via-relleno i:nth-child(6) { animation-delay:-1.83s; }
+  @keyframes fluir { to { left:100%; } }
+  .marco { position:absolute; top:.2rem; bottom:-.3rem; border:1.5px dashed var(--texto-3); border-radius:14px; pointer-events:none; }
+  .marco span { position:absolute; top:-.65rem; left:50%; transform:translateX(-50%); background:var(--fondo); padding:0 .6rem;
+                font-size:.72rem; font-weight:600; color:var(--texto-3); white-space:nowrap; }
+  .nodo { position:relative; z-index:1; flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:.25rem;
+          background:none; border:0; padding:0; cursor:pointer; color:var(--texto-2); }
+  .bola { width:2.8rem; height:2.8rem; border-radius:50%; display:grid; place-items:center; font-weight:750; background:var(--superficie);
+          border:2px solid var(--borde); transition:transform .4s cubic-bezier(.2,1.6,.4,1), background-color .4s, border-color .4s; }
+  .nodo code { font-size:.82rem; font-weight:650; color:var(--texto); }
+  .nodo small { font-size:.74rem; color:var(--texto-3); }
+  .nodo.hecho .bola { background:var(--serie1); border-color:var(--serie1); color:#fff; font-size:0; }
+  .nodo.hecho .bola::after { content:"✓"; font-size:1.1rem; }
+  .nodo.activo .bola { border-color:var(--serie1); transform:scale(1.2); animation:latido 1.6s ease-in-out infinite; }
+  @keyframes latido {
+    0%, 100% { box-shadow:0 0 0 5px color-mix(in oklab, var(--serie1) 25%, transparent), 0 0 22px 2px color-mix(in oklab, var(--serie1) 50%, transparent); }
+    50% { box-shadow:0 0 0 10px color-mix(in oklab, var(--serie1) 12%, transparent), 0 0 36px 8px color-mix(in oklab, var(--serie1) 35%, transparent); }
+  }
+  .ent { grid-template-columns:2.5fr 1fr; }
+  .escena { position:relative; overflow:hidden; padding:0; }
+  .panel { position:absolute; inset:1.1rem 1.4rem; display:flex; flex-direction:column; gap:.9rem; opacity:0;
+           transform:translateY(14px) scale(.985); transition:opacity .45s ease, transform .45s ease; pointer-events:none; }
+  .panel.visible { opacity:1; transform:none; pointer-events:auto; }
+  .tit { position:relative; padding-right:12rem; }
+  .tit code { font-size:.78rem; color:var(--texto-3); }
+  /* Antes / después: dos textos en la misma celda; la clase .despues del panel decide cuál se ve */
+  .swap { display:grid; } .swap > * { grid-area:1 / 1; transition:opacity .35s ease; } .swap > .d { opacity:0; }
+  .despues .swap > .a { opacity:0; } .despues .swap > .d { opacity:1; }
+  .ad { position:absolute; top:0; right:0; display:flex; align-items:center; gap:.4rem; font-size:.72rem; font-weight:700;
+        letter-spacing:.08em; text-transform:uppercase; color:var(--texto-3); }
+  .ad span { padding:.22rem .7rem; border-radius:99px; border:1px solid var(--borde); transition:background-color .3s, color .3s, border-color .3s; }
+  .ad .a, .despues .ad .d { background:var(--serie1); border-color:var(--serie1); color:#fff; }
+  .despues .ad .a { background:none; border-color:var(--borde); color:var(--texto-3); }
+  .panel:not(.despues) .ad .d { animation:llamada 1.4s ease-in-out infinite; }
+  @keyframes llamada { 50% { border-color:var(--serie1); color:var(--texto); box-shadow:0 0 0 4px color-mix(in oklab, var(--serie1) 22%, transparent); } }
+  .nodo.activo.aplicado .bola { background:var(--serie1); color:#fff; }
+  .ficha .fuera { transition:opacity .4s ease; }
+  .despues .ficha .fuera { opacity:.35; text-decoration:line-through; }
+  .ficha .grupo.oculto { opacity:0; transition:opacity .4s ease; } .despues .ficha .grupo.oculto { opacity:1; }
+  .tit h3 { font-size:1.4rem; letter-spacing:-.015em; margin:.15rem 0 .2rem; }
+  .tit p { margin:0; color:var(--texto-2); font-size:.92rem; max-width:72ch; }
+  .lado { flex:1; min-height:0; display:grid; grid-template-columns:1.3fr 1fr; gap:2rem; align-items:center; }
+  pre.codigo { margin:0; padding:1rem 1.2rem; border-radius:12px; background:var(--superficie-2); color:var(--texto-3);
+               font-size:.86rem; line-height:1.65; white-space:pre; overflow:hidden; }
+  pre.codigo b { color:var(--texto); }
+  .invita { font-size:1.5rem; font-weight:750; letter-spacing:-.02em; line-height:1.2; }
+  .invita kbd { font-size:1.1rem; }
+  /* 648 filas */
+  .r648 { display:grid; grid-template-columns:repeat(36, 1fr); gap:2px; }
+  .r648 i { position:relative; aspect-ratio:1; border-radius:2px; background:color-mix(in oklab, var(--seq-alto) var(--v), var(--seq-bajo));
+            opacity:0; transform:scale(.2); }
+  .panel.visible .r648 i { animation:celda .4s cubic-bezier(.2,1.5,.4,1) forwards calc(var(--i) * 25ms); }
+  .panel.visible .r648.fija i { animation:none; opacity:1; transform:none; }
+  @keyframes celda { to { opacity:1; transform:none; } }
+  .r648 i.ej { outline:2px solid var(--texto); outline-offset:1px; z-index:1; }
+  .r648 i.n::after { content:""; position:absolute; inset:-1px; border-radius:2px; background:var(--critico); }
+  .despues .r648 i.n::after { animation:apagar 1s ease forwards; }
+  @keyframes apagar { 30% { transform:scale(1.6); opacity:1; } 100% { transform:scale(1); opacity:0; } }
+  .pie-r648 { margin-top:.6rem; }
+  .ficha { margin:0; display:grid; grid-template-columns:auto 1fr; gap:.28rem 1rem; font-size:.92rem; align-content:center; }
+  .ficha dt { color:var(--texto-2); }
+  .ficha dd { margin:0; font-weight:650; font-variant-numeric:tabular-nums; }
+  .ficha .grupo { grid-column:1 / -1; color:var(--texto-3); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; margin-top:.5rem; }
+  .ficha .y { font-size:1.7rem; line-height:1; }
+  .nulo { color:var(--critico); border:1.5px dashed var(--critico); border-radius:6px; padding:0 .45rem; }
+  .relleno-nulo { display:inline-grid; } .relleno-nulo > * { grid-area:1 / 1; width:fit-content; }
+  .relleno-nulo b { opacity:0; border-radius:6px; padding:0 .45rem; background:color-mix(in oklab, var(--serie3) 28%, transparent); }
+  .despues .relleno-nulo .nulo { animation:salir .45s ease forwards; }
+  .despues .relleno-nulo b { animation:entrar .5s ease .35s forwards; }
+  @keyframes salir { to { opacity:0; transform:translateY(-10px); } }
+  @keyframes entrar { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  /* OneHotEncoder */
+  .oh-lista { flex:1; display:flex; flex-direction:column; justify-content:center; gap:1rem; }
+  .oh-fila { display:grid; grid-template-columns:5.5rem 7rem 1.5rem 1fr; align-items:center; gap:.7rem; }
+  .oh-campo { color:var(--texto-3); font-size:.75rem; text-transform:uppercase; letter-spacing:.1em; }
+  .oh-flecha { color:var(--texto-3); font-size:1.2rem; }
+  .oh-cols { display:flex; gap:5px; flex-wrap:wrap; perspective:600px; }
+  .oh { display:flex; flex-direction:column; align-items:center; min-width:5rem; padding:.3rem .5rem; border-radius:8px;
+        background:var(--superficie-2); opacity:0; transform:rotateX(90deg); }
+  .despues .oh { animation:voltear .45s ease forwards var(--d); }
+  @keyframes voltear { to { opacity:1; transform:none; } }
+  .oh small { font-size:.72rem; color:var(--texto-3); }
+  .oh b { font-size:1.15rem; }
+  .oh.uno { background:var(--serie1); } .oh.uno small, .oh.uno b { color:#fff; }
+  /* StandardScaler */
+  .esc-lista { flex:1; display:flex; flex-direction:column; justify-content:center; gap:1.1rem; }
+  .esc-cab { display:grid; grid-template-columns:11rem 1fr 7.5rem; gap:1rem; color:var(--texto-3); font-size:.8rem; }
+  .esc-cab span { transition:opacity .4s; } .esc-cab .z { grid-area:1 / 2; opacity:0; }
+  .despues .esc-cab .a { opacity:0; } .despues .esc-cab .z { opacity:1; }
+  .esc-fila { display:grid; grid-template-columns:11rem 1fr 7.5rem; gap:1rem; align-items:center; }
+  .esc-fila > span { color:var(--texto-2); }
+  .esc-pista { position:relative; height:1.4rem; }
+  .esc-pista::after { content:""; position:absolute; left:50%; top:-.5rem; bottom:-.5rem; border-left:1.5px dashed var(--texto-3); opacity:0; transition:opacity .4s .7s; }
+  .despues .esc-pista::after { opacity:1; }
+  .esc-pista i { position:absolute; top:0; bottom:0; left:0; width:var(--wa); min-width:3px; background:var(--serie1); border-radius:0 4px 4px 0;
+                 transition:left 1.1s cubic-bezier(.65,0,.25,1), width 1.1s cubic-bezier(.65,0,.25,1), border-radius 1.1s; }
+  .panel.visible .esc-pista i { animation:crecer .8s cubic-bezier(.2,.8,.2,1); }
+  @keyframes crecer { from { width:0; } }
+  .despues .esc-pista i { left:var(--xz); width:var(--wz); border-radius:4px; }
+  .esc-v { display:grid; justify-items:end; font-variant-numeric:tabular-nums; font-weight:650; }
+  .esc-v b { grid-area:1 / 1; transition:opacity .4s; } .esc-v .z { opacity:0; }
+  .despues .esc-v .a { opacity:0; } .despues .esc-v .z { opacity:1; }
+  /* Ridge */
+  .formula { font-size:1.02rem; font-weight:650; padding:.55rem .9rem; border-radius:10px; background:var(--superficie-2); width:fit-content; }
+  .coefs { flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:.4rem; }
+  .coef-fila { display:grid; grid-template-columns:14rem 1fr 3.5rem; gap:.8rem; align-items:center; font-size:.88rem; }
+  .coef-fila span { color:var(--texto-2); text-align:right; }
+  .coef-fila b { text-align:right; font-variant-numeric:tabular-nums; }
+  .coef-pista { position:relative; height:1rem; }
+  .coef-pista::before { content:""; position:absolute; left:50%; top:-.25rem; bottom:-.25rem; border-left:1px solid var(--texto-3); }
+  .coef-pista i { position:absolute; top:0; bottom:0; left:50%; width:0; border-radius:3px; background:var(--serie1);
+                  transition:left .7s cubic-bezier(.2,.8,.2,1), width .7s cubic-bezier(.2,.8,.2,1), background-color .3s; }
+  .coef-pista i.neg { background:var(--negativo); }
+  .alpha { display:grid; grid-template-columns:auto minmax(12rem, 22rem) 1fr; gap:1rem; align-items:center; font-size:.9rem; color:var(--texto-2); }
+  .alpha-marcas { display:flex; justify-content:space-between; font-size:.72rem; color:var(--texto-3); margin-top:.15rem; }
+  .alpha b { color:var(--texto); }
+  .mini-chip { display:inline-block; margin-left:.4rem; padding:.05rem .55rem; border-radius:99px; font-size:.75rem; font-weight:700; }
+  .mini-chip.bien { background:color-mix(in oklab, var(--serie3) 30%, transparent); color:var(--texto); }
+  .mini-chip.mal { background:color-mix(in oklab, var(--critico) 30%, transparent); color:var(--texto); }
+  /* Una previsión, columna a columna */
+  .cascada { position:relative; margin:auto 0; padding-top:1.4rem; display:grid; grid-template-columns:15rem 1fr 4rem; gap:.42rem .8rem;
+             align-content:center; align-items:center; font-size:.88rem; }
+  .cas-n { color:var(--texto-2); text-align:right; }
+  .cas-v { font-variant-numeric:tabular-nums; font-weight:650; }
+  .cas-v .swap > * { transition-delay:var(--d); }
+  .cas-pista { position:relative; height:1.25rem; }
+  .cas-pista i { position:absolute; top:0; bottom:0; left:var(--l); width:var(--w); border-radius:3px; background:var(--gris);
+                 transform:scaleX(0); transform-origin:left; }
+  .cas-pista.menos i { background:var(--negativo); transform-origin:right; }
+  .cas-pista.mas i { background:var(--serie1); }
+  .cas-pista.total i { background:var(--serie1); box-shadow:0 0 18px color-mix(in oklab, var(--serie1) 50%, transparent); }
+  .cas-pista.base i { transform:none; }
+  .despues .cas-pista:not(.base) i { animation:abrir .55s cubic-bezier(.2,.8,.2,1) forwards var(--d); }
+  @keyframes abrir { to { transform:none; } }
+  .cas-real { position:absolute; top:-.2rem; bottom:-.2rem; left:calc(15.8rem + (100% - 20.6rem) * var(--r)); border-left:2px dashed var(--texto);
+              opacity:0; pointer-events:none; }
+  .despues .cas-real { animation:aparecer .4s ease forwards var(--d); }
+  .cas-real span { position:absolute; top:-1.3rem; left:-2rem; width:4rem; text-align:center; font-size:.78rem; font-weight:700; }
+  /* Guardar y usar */
+  .uso { flex:1; min-height:0; display:grid; grid-template-columns:1.1fr auto 1fr; gap:1.6rem; align-items:center; }
+  .archivo { display:flex; gap:1.1rem; align-items:flex-start; }
+  .doc { flex:none; width:4.4rem; height:5.4rem; border-radius:6px 20px 6px 6px; border:2px solid var(--serie1); display:grid; place-items:center;
+         background:color-mix(in oklab, var(--serie1) 12%, var(--superficie)); font-size:.7rem; font-weight:700; color:var(--texto-2); }
+  .panel.visible .doc { animation:latido 1.6s ease-in-out infinite; }
+  .archivo b { display:block; font-size:1rem; } .archivo .etq { margin-bottom:.5rem; }
+  .archivo ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.35rem; font-size:.88rem; color:var(--texto-2); }
+  .archivo li { opacity:0; } .archivo li::before { content:"＋ "; color:var(--serie1); font-weight:800; }
+  .panel.visible .archivo li { animation:entrarX .4s ease forwards var(--d); }
+  @keyframes entrarX { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:none; } }
+  .flecha-uso { display:flex; flex-direction:column; align-items:center; gap:.3rem; font-size:.78rem; color:var(--texto-3); }
+  .flecha-uso b { font-size:2.4rem; color:var(--serie1); line-height:1; }
+  .despues .flecha-uso b { animation:empujar 1.2s ease-in-out infinite; }
+  .usar { opacity:0; transition:opacity .45s ease; } .despues .usar { opacity:1; }
+  @keyframes empujar { 50% { transform:translateX(8px); } }
+  .julio-mini { display:flex; align-items:flex-end; gap:3px; height:6.5rem; margin:.6rem 0 .3rem; }
+  .julio-mini i { flex:1; height:var(--h); border-radius:3px 3px 0 0; background:var(--c); }
+  .despues .julio-mini i { animation:subir .6s cubic-bezier(.2,.8,.2,1) both var(--d); }
+  @keyframes subir { from { height:0; } }
+  /* Terminal */
+  .terminal { min-height:0; overflow:auto; border-radius:16px; padding:.9rem 1.1rem; background:#0e0f0d; color:#d6d5cd;
+              border:1px solid var(--borde); font-size:.78rem; line-height:1.6; }
+  .terminal::before { content:"● ● ●"; display:block; margin-bottom:.6rem; color:#3a3a37; letter-spacing:.25em; font-size:.7rem; }
+  .terminal div { white-space:pre-wrap; overflow-wrap:anywhere; }
+  .terminal .cmd { margin-top:.4rem; } .terminal .cmd::before { content:"$ "; color:#3fbf8a; font-weight:700; }
+  .terminal .com { color:#8f8e86; }
+  .terminal > div:last-child::after { content:"▌"; animation:parpadeo 1s steps(1) infinite; }
+  @keyframes parpadeo { 50% { opacity:0; } }
+
+  /* 9 · Simulador */
+  .sim { grid-template-columns:minmax(17rem, 1fr) 2.3fr; }
+  .control { display:flex; flex-direction:column; gap:.3rem; }
+  .control .cab { display:flex; justify-content:space-between; color:var(--texto-2); font-size:.9rem; }
+  .control output { color:var(--texto); font-weight:650; font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:var(--serie1); margin:0; }
+  .alerta { display:flex; gap:.5rem; align-items:center; color:var(--texto-2); font-size:.92rem; }
+  .alerta b { color:var(--texto); }
+  .filas-sim { flex:1; display:grid; grid-template-columns:auto 1fr auto; gap:.28rem .9rem; align-content:space-evenly; align-items:center; font-size:.85rem; }
+  .filas-sim .grupo { grid-column:1 / -1; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--texto-3); }
+  .filas-sim .nom { display:flex; align-items:center; gap:.45rem; color:var(--texto-2); white-space:nowrap; }
+  .medidor { position:relative; height:.95rem; }
+  .medidor .pista { position:absolute; left:0; top:0; bottom:0; border-radius:0 4px 4px 0; transition:width .3s ease;
+                    background:color-mix(in oklab, var(--c) 22%, var(--superficie)); }
+  .medidor .relleno { position:absolute; left:0; top:3px; bottom:3px; border-radius:0 3px 3px 0; background:var(--c); transition:width .3s ease, background-color .3s; }
+  .limite .relleno { background:var(--critico); }
+  .filas-sim .v { font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; color:var(--texto-3); min-width:6.5rem; }
+  .filas-sim .v b { color:var(--texto); }
+
+  /* 9 · Segmentos */
+  .segs { grid-template-columns:repeat(4, 1fr); }
+  .seg header { display:flex; align-items:center; gap:.55rem; }
+  .seg dl { display:grid; grid-template-columns:1fr auto; gap:.4rem .6rem; margin:0; font-size:.9rem; }
+  .seg dt { color:var(--texto-2); }
+  .seg dd { margin:0; text-align:right; font-weight:650; font-variant-numeric:tabular-nums; }
+  .cuota { height:6px; border-radius:99px; background:var(--superficie-2); overflow:hidden; }
+  .cuota div { height:100%; width:0; background:var(--c); border-radius:99px; transition:width 1s ease .3s; }
+  .diapo.actual .cuota div { width:var(--w); }
+  .accion { margin-top:auto; padding:.75rem .9rem; border-radius:10px; font-weight:600; background:color-mix(in oklab, var(--c) 16%, var(--superficie)); }
+
+  /* 10 · Clientes */
+  .filtros { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .filtros button { border:1px solid var(--borde); background:var(--superficie); border-radius:99px; padding:.3rem .85rem; cursor:pointer;
+                    display:inline-flex; gap:.45rem; align-items:center; color:var(--texto-2); }
+  .filtros button[aria-pressed="true"] { border-color:var(--texto-2); color:var(--texto); background:var(--superficie-2); }
+  svg.disperso circle.p { transition:opacity .3s; }
+  svg.disperso[data-solo="0"] circle.p:not(.s0), svg.disperso[data-solo="1"] circle.p:not(.s1),
+  svg.disperso[data-solo="2"] circle.p:not(.s2), svg.disperso[data-solo="3"] circle.p:not(.s3) { opacity:.06; }
+  a { color:var(--texto-2); }
+
+  /* 11 · Cierre */
+  .cierre { grid-template-columns:1fr 1.25fr; align-items:center; }
+  .limites { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:1.6rem; }
+  .cierre > * { justify-content:center; gap:1.6rem; }
+  .cierre > .pila { gap:2.5rem; }
+  .limites li { display:grid; grid-template-columns:1.8rem 1fr; gap:.6rem; color:var(--texto-2); font-size:1.05rem; }
+  .limites li::before { content:"!"; display:grid; place-items:center; width:1.8rem; height:1.8rem; border-radius:50%;
+                        border:2px solid var(--texto-3); color:var(--texto); font-weight:800; font-size:.9rem; }
+  .tres { display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; }
+  .gracias { font-size:3.4rem; font-weight:800; letter-spacing:-.03em; line-height:1; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Portada -->
+<section class="diapo portada">
+  <p class="ayuda"><kbd>→</kbd> avanzar · <kbd>N</kbd> notas · <kbd>F</kbd> pantalla completa · <kbd>T</kbd> tema</p>
+  <div class="ante">Proyecto de Machine Learning · CE IA y Big Data</div>
+  <h1>BiciTierra<br>Market</h1>
+  <p class="lead">Cómo anticipar las ventas de cada mes y conocer mejor a los clientes.</p>
+  <p class="equipo">Andy · Guillem · Dennis</p>
+  <span class="chip">Datos sintéticos · enero 2021 – junio 2026</span>
+  <div class="graf fondo-graf" id="g-portada"></div>
+</section>
+
+<!-- 2 · El problema -->
+<section class="diapo">
+  <div class="ante">El problema</div>
+  <h2>¿Cuántas bicis venderemos el mes que viene en cada serie?</h2>
+  <p class="lead">Cada mes hay que decidir cuánto stock poner en cada canal y región, usando solo lo que se sabe
+    antes de que empiece el mes. Y una segunda pregunta: ¿qué tipos de clientes tenemos y qué hacemos con cada uno?</p>
+  <div class="cuerpo dos" id="series18"></div>
+  <p class="nota">2 canales × 3 líneas × 3 regiones = 18 series de 66 meses. Todas con la misma escala vertical.</p>
+</section>
+
+<!-- 3 · Los datos -->
+<section class="diapo">
+  <div class="ante">Los datos y su calidad</div>
+  <h2><span data-k="meses"></span> meses, <span data-k="series"></span> series y <span data-k="clientes"></span> clientes. Con dos trampas.</h2>
+  <div class="cifras">
+    <div class="tarjeta"><div class="cifra" data-k="nulos"></div><div class="etq">valores nulos en <span data-k="columnas_con_nulos"></span> columnas. <b>Un nulo no es un cero.</b></div></div>
+    <div class="tarjeta"><div class="cifra"><span data-k="rotura_pct"></span> %</div><div class="etq">de los meses se agota el stock: <b>se vende menos de lo que se pide.</b></div></div>
+  </div>
+  <div class="tarjeta" style="flex:1">
+    <div class="cab-tarjeta">
+      <h3>Unidades vendidas por serie y mes</h3>
+      <div class="leyenda">
+        <span data-modo="ventas"><span class="degradado"></span> menos → más unidades</span>
+        <span data-modo="roturas" hidden><span class="cuadro"></span> mes con rotura de stock</span>
+      </div>
+      <div class="conmutador" role="group" aria-label="Qué mostrar">
+        <button data-modo="ventas" aria-pressed="true">Ventas</button>
+        <button data-modo="roturas" aria-pressed="false">Roturas de stock</button>
+      </div>
+    </div>
+    <div class="mapa ventas" id="mapa"></div>
+  </div>
+</section>
+
+<!-- 4 · Hipótesis -->
+<section class="diapo">
+  <div class="ante">Hipótesis</div>
+  <h2>Las ventas tienen temporada y las eléctricas crecen</h2>
+  <div class="cuerpo hipo">
+    <div class="pila">
+      <div class="tarjeta"><div class="cifra">×<span data-k="ratio_montana" data-dec="1"></span></div>
+        <div class="etq"><b>Montaña:</b> en julio se vende el doble que en enero (media 2021–2024).</div></div>
+      <div class="tarjeta"><div class="cifra">+<span data-k="crecimiento_electrica"></span> %</div>
+        <div class="etq"><b>Eléctricas:</b> ventas de 2024 frente a 2021.</div></div>
+    </div>
+    <div class="tarjeta">
+      <div class="cab-tarjeta"><h3>Unidades vendidas al mes por línea de producto</h3><div class="leyenda" id="ley-hipo"></div></div>
+      <div class="graf" id="g-hipotesis"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · Sin trampas -->
+<section class="diapo">
+  <div class="ante">Cómo evitamos hacer trampa</div>
+  <h2>Separamos por fechas y solo usamos lo que se sabe antes del mes</h2>
+  <div class="cuerpo cinco">
+    <div class="tarjeta tiempo">
+      <div class="fases">
+        <div class="fase" style="--m:12;--c:var(--gris);--d:0s"><div class="tira"></div><b>2021</b><span>solo para los retrasos</span></div>
+        <div class="fase" style="--m:36;--c:var(--serie1);--d:.15s"><div class="tira"></div><b>Entrenamiento</b><span>2022 – 2024 · aprende</span></div>
+        <div class="fase" style="--m:12;--c:var(--serie3);--d:.3s"><div class="tira"></div><b>Validación</b><span>2025 · elige</span></div>
+        <div class="fase" style="--m:6;--c:var(--serie2);--d:.45s"><div class="tira"></div><b>Prueba</b><span>ene–jun 2026 · una vez</span></div>
+        <div class="fase ultima" style="--d:.6s"><div class="tira"></div><b>Previsión</b><span>julio 2026</span></div>
+      </div>
+    </div>
+    <div class="tarjeta si"><h3>Se conocen antes del mes</h3>
+      <div class="vars"><span class="chip">stock inicial</span><span class="chip">presupuesto aprobado</span><span class="chip">descuento previsto</span>
+        <span class="chip">precio de tarifa</span><span class="chip">campaña</span><span class="chip">días del mes</span>
+        <span class="chip">ventas del mes anterior</span><span class="chip">ventas de hace un año</span></div></div>
+    <div class="tarjeta no"><h3>Solo se conocen al cierre</h3>
+      <div class="vars"><span class="chip">ingresos (revenue)</span><span class="chip">sesiones web</span><span class="chip">gasto real</span>
+        <span class="chip">descuento real</span><span class="chip">stock final</span><span class="chip">rotura de stock</span></div></div>
+    <div class="tarjeta trampa" id="trampa">
+      <h3>¿Y si usamos los ingresos del mes?</h3>
+      <button class="boton" id="btn-trampa" aria-pressed="false">Hacer trampa con revenue</button>
+      <div class="sello">Fuga de<br>información</div>
+      <div class="comparar">
+        <div><div class="cifra" id="mae-trampa">—</div><div class="etq">bicis de error con revenue</div></div>
+        <div><div class="cifra" data-k="mae_ref" data-dec="1"></div><div class="etq">mejor referencia honesta</div></div>
+      </div>
+      <p class="nota">Error cero parece perfecto, pero es imposible de aplicar: los ingresos de julio no se conocen hasta que acaba julio.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · Comparativa -->
+<section class="diapo">
+  <div class="ante">Comparativa de modelos</div>
+  <h2>Primero dos referencias simples; después, una regresión ridge</h2>
+  <div class="cuerpo seis">
+    <div class="tarjeta">
+      <h3>Error medio en validación (2025): bicis por serie y mes</h3>
+      <div class="barras" id="barras"></div>
+    </div>
+    <div class="tarjeta destacado">
+      <div class="cifra grande">−<span data-contar data-k="mejora_pct"></span> %</div>
+      <div class="etq" style="font-size:1rem">de error frente a la mejor referencia: de <b data-k="mae_ref" data-dec="1"></b> a <b data-k="mae_valid" data-dec="1"></b> bicis.</div>
+      <p class="nota">Los tres valores de α dan casi lo mismo, así que la elección es estable. Validando también 2023 y 2024, α = 100 vuelve a ganar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · Prueba final -->
+<section class="diapo">
+  <div class="ante">Prueba final · enero – junio 2026</div>
+  <h2>Con meses que nunca vio, sigue ganando… pero se queda corto</h2>
+  <div class="cuerpo siete">
+    <div class="cifras">
+      <div class="tarjeta"><div class="cifra" data-contar data-k="mae_prueba" data-dec="1"></div><div class="etq">bicis de error por serie y mes (referencia: <span data-k="mae_ref_prueba" data-dec="1"></span>)</div></div>
+      <div class="tarjeta"><div class="cifra"><span data-contar data-k="wape_prueba" data-dec="1"></span> %</div><div class="etq">de error sobre el total vendido (WAPE)</div></div>
+      <div class="tarjeta"><div class="cifra">−<span data-contar data-k="sesgo"></span></div><div class="etq">bicis de media: en 2026 se vende más y el modelo se queda corto</div></div>
+    </div>
+    <div class="tarjeta">
+      <div class="cab-tarjeta"><h3>Total vendido al mes: real frente a previsto</h3><div class="leyenda" id="ley-prueba"></div></div>
+      <div class="graf" id="g-prueba"></div>
+    </div>
+    <div class="tarjeta">
+      <h3>El peor caso</h3>
+      <div class="etq" id="peor-caso"></div>
+      <div style="margin:auto 0"><div class="cifra grande" data-contar id="peor-falta"></div><div class="etq">bicis vendidas que el modelo no previó</div></div>
+      <div class="duelo" id="duelo"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · Puesta en marcha: cómo se entrena -->
+<section class="diapo" id="d-entreno">
+  <div class="ante">Puesta en marcha · scikit-learn</div>
+  <div class="cab-tarjeta">
+    <h2>Así aprende el modelo, paso a paso</h2>
+    <div class="mandos"><button class="boton" id="ent-play">▶ Entrenar</button><button class="boton" id="ent-reset" aria-label="Volver al principio">↺</button></div>
+  </div>
+  <div class="tuberia" id="tuberia">
+    <div class="via" id="via"><div class="via-relleno" id="via-relleno"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <div class="marco" id="marco"><span class="mono">Pipeline = make_pipeline(…)</span></div>
+  </div>
+  <div class="cuerpo ent">
+    <div class="tarjeta escena" id="escena"></div>
+    <div class="terminal mono" id="terminal" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- 9 · Simulador de julio -->
+<section class="diapo">
+  <div class="ante">Julio 2026 · Recomendación de stock</div>
+  <h2>¿Cuánto venderemos en julio y dónde se queda corto el stock?</h2>
+  <div class="cuerpo sim">
+    <div class="tarjeta">
+      <div><div class="cifra grande" id="sim-total" aria-live="polite"></div><div class="etq">bicis previstas para julio de 2026 · de <span id="sim-stock"></span> en stock</div></div>
+      <div class="alerta"><span class="cuadro"></span><span id="sim-alerta"></span></div>
+      <label class="control"><span class="cab">Presupuesto de marketing <output id="o-pres"></output></span>
+        <input type="range" id="r-pres" min="-50" max="100" step="5" value="0"></label>
+      <label class="control"><span class="cab">Descuento previsto <output id="o-desc"></output></span>
+        <input type="range" id="r-desc" min="-10" max="10" step="1" value="0"></label>
+      <label class="control"><span class="cab">Stock disponible <output id="o-stock"></output></span>
+        <input type="range" id="r-stock" min="-30" max="50" step="5" value="0"></label>
+      <button class="boton" id="sim-reset">Volver a la previsión</button>
+      <p class="nota" style="margin-top:auto">Es una previsión, no un resultado. Que más stock dé más ventas es una relación, no una causa:
+        la venta nunca puede superar el stock.</p>
+    </div>
+    <div class="tarjeta">
+      <div class="cab-tarjeta"><h3>Previsión frente a stock por serie</h3>
+        <div class="leyenda"><span><span class="punto" style="--c:var(--texto-3)"></span> barra = previsión · fondo = stock</span>
+          <span><span class="cuadro"></span> llega al stock</span></div></div>
+      <div class="filas-sim" id="sim-filas"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 · Clientes -->
+<section class="diapo">
+  <div class="ante">Clientes</div>
+  <h2>Cuatro perfiles de cliente, cuatro acciones</h2>
+  <p class="lead">K-Means con gasto, pedidos, días sin comprar, devoluciones y antigüedad, todas escaladas para que ninguna domine la distancia.</p>
+  <div class="cuerpo segs" id="segs"></div>
+</section>
+
+<!-- 10 · Explorar clientes -->
+<section class="diapo">
+  <div class="ante">Demo · clientes</div>
+  <h2>Cada punto es un cliente: cuánto gasta y cuánto hace que no compra</h2>
+  <div class="tarjeta" style="flex:1">
+    <div class="cab-tarjeta">
+      <div class="filtros" id="filtros"></div>
+      <span class="nota"><span data-k="clientes_visibles"></span> clientes con fecha del último pedido · <a href="panel.html" target="_blank">abrir el panel completo ↗</a></span>
+    </div>
+    <div class="graf" id="g-clientes"></div>
+  </div>
+</section>
+
+<!-- 11 · Cierre -->
+<section class="diapo">
+  <div class="ante">Límites y cierre</div>
+  <h2>Un modelo sencillo y honesto</h2>
+  <div class="cuerpo cierre">
+    <div class="tarjeta">
+      <h3>Límites</h3>
+      <ul class="limites">
+        <li>Datos sintéticos: una relación no demuestra una causa.</li>
+        <li>La rotura de stock oculta demanda: no vemos cuánto más se habría vendido.</li>
+        <li>El modelo se queda corto cuando las ventas crecen.</li>
+        <li>Julio todavía no se puede validar.</li>
+      </ul>
+    </div>
+    <div class="pila">
+      <div class="tres">
+        <div class="tarjeta"><div class="cifra">−<span data-contar data-k="mejora_pct"></span> %</div><div class="etq">de error frente a la referencia</div></div>
+        <div class="tarjeta"><div class="cifra" data-contar data-k="prevision_julio"></div><div class="etq">bicis previstas en julio, con recomendación de stock</div></div>
+        <div class="tarjeta"><div class="cifra" data-contar data-k="segmentos"></div><div class="etq">perfiles de cliente, cada uno con su acción</div></div>
+      </div>
+      <div class="gracias">Gracias.<br><span style="color:var(--texto-3)">¿Preguntas?</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="pie"><span id="pie-bloque"></span><span id="pie-num"></span></div>
+<div class="progreso" id="progreso"></div>
+<aside id="notas" hidden>
+  <header><b id="n-titulo"></b><span id="n-quien"></span><span id="n-tiempo"></span><span id="n-reloj"></span></header>
+  <p id="n-texto"></p>
+</aside>
+<div id="tip" hidden></div>
+
+<script>
+const D = __DATOS__;
+const NOMBRE = { store:'Tienda', ecommerce:'Online', urban:'Urbana', mountain:'Montaña', electric:'Eléctrica',
+                 coast:'Costa', inland:'Interior', metro:'Metro' };
+const LINEAS = ['urban', 'mountain', 'electric'], REGIONES = ['coast', 'inland', 'metro'];
+const COLOR = { urban:'var(--urban)', mountain:'var(--mountain)', electric:'var(--electric)' };
+const COLOR_SEG = ['var(--serie1)', 'var(--serie3)', 'var(--gris)', 'var(--serie2)'];
+const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const mesTxt = m => `${MES[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}`;
+// Formato español con espacio fino para los miles (2 398), como en el guion
+const fmt = (n, d = 0) => Number(n).toLocaleString('es-ES', { minimumFractionDigits:d, maximumFractionDigits:d, useGrouping:'always' }).replaceAll('.', ' ');
+const $ = s => document.querySelector(s);
+const nombreSerie = s => `${NOMBRE[s.canal]} · ${NOMBRE[s.linea]} · ${NOMBRE[s.region]}`;
+
+// ---------- Utilidades de SVG y tooltip ----------
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, padre) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+  padre.appendChild(e);
+  return e;
+}
+function aSvg(svg, e) {  // coordenadas del ratón dentro del viewBox
+  const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+function lienzo(cont) {  // el viewBox mide 1000 de ancho y la altura sigue la proporción del hueco
+  const alto = cont.clientWidth ? Math.round(1000 * cont.clientHeight / cont.clientWidth) : 400;
+  return { svg: el('svg', { viewBox:`0 0 1000 ${alto}` }, cont), W: 1000, H: alto };
+}
+function ticks(min, max, n = 4) {
+  const bruto = (max - min) / n, mag = 10 ** Math.floor(Math.log10(bruto));
+  const paso = [1, 2, 2.5, 5, 10].map(f => f * mag).find(p => p >= bruto);
+  const t = [];  // la primera marca es un múltiplo redondo del paso
+  for (let v = Math.floor(min / paso) * paso; ; v += paso) { t.push(v); if (v >= max) break; }
+  return t;
+}
+const tip = $('#tip');
+const filaTip = (color, nombre, valor) =>
+  `<div class="fila"><span><i class="punto" style="--c:${color}"></i>${nombre}</span><span class="num">${valor}</span></div>`;
+function mostrarTip(html, x, y) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  tip.style.left = (x + 16 + r.width > innerWidth - 8 ? x - r.width - 16 : x + 16) + 'px';
+  tip.style.top = (y + 16 + r.height > innerHeight - 8 ? y - r.height - 16 : y + 16) + 'px';
+}
+const ocultarTip = () => { tip.hidden = true; };
+function leyenda(cont, items) {
+  cont.innerHTML = items.map(i => `<span><span class="clave-linea${i.disc ? ' disc' : ''}" style="--c:${i.color}"></span>${i.nombre}</span>`).join('');
+}
+
+// Gráfico de líneas: ejes, rejilla, etiquetas al final de cada línea y cruz con tooltip
+function grafLineas(cont, o) {
+  const { svg, W, H } = lienzo(cont);
+  const m = o.ejes === false ? { i:0, d:0, s:10, b:0 } : { i:60, d:o.margenDcho ?? 120, s:14, b:34 };
+  const n = o.etiquetas.length;
+  const marcas = ticks(o.yMin ?? 0, Math.max(...o.series.flatMap(s => s.valores).filter(v => v != null)));
+  const yMin = marcas[0], yMax = marcas.at(-1), paso = (W - m.i - m.d) / (n - 1);
+  const x = i => m.i + i * paso, y = v => H - m.b - (v - yMin) / (yMax - yMin) * (H - m.s - m.b);
+  if (o.ejes !== false) {
+    for (const t of marcas) {
+      el('line', { class:'rejilla', x1:m.i, x2:W - m.d, y1:y(t), y2:y(t) }, svg);
+      el('text', { x:m.i - 10, y:y(t) + 4, 'text-anchor':'end' }, svg).textContent = fmt(t);
+    }
+    for (const [i, txt] of o.marcasX) el('text', { x:x(i), y:H - 8, 'text-anchor':'middle' }, svg).textContent = txt;
+  }
+  const finales = [];
+  for (const s of o.series) {
+    const idx = s.valores.flatMap((v, i) => v == null ? [] : [i]);
+    const d = idx.map((i, k) => `${k && idx[k - 1] === i - 1 ? 'L' : 'M'}${x(i).toFixed(1)},${y(s.valores[i]).toFixed(1)}`).join('');
+    if (s.area) el('path', { d:`${d}L${x(idx.at(-1))},${y(yMin)}L${x(idx[0])},${y(yMin)}Z`, class:'aparece', style:`fill:${s.color};fill-opacity:.12` }, svg);
+    el('path', { d, class:`trazo ${s.discontinua ? 'aparece' : 'dibujar'}`, pathLength:s.discontinua ? null : 1,
+                 style:`stroke:${s.color}${s.discontinua ? ';stroke-dasharray:7 7' : ''}` }, svg);
+    if (o.puntos) for (const i of idx) el('circle', { cx:x(i), cy:y(s.valores[i]), r:5, class:'aparece', style:`fill:${s.color};stroke:var(--superficie);stroke-width:2` }, svg);
+    if (s.etiqueta) finales.push({ x:x(idx.at(-1)), y:y(s.valores[idx.at(-1)]), texto:s.etiqueta, color:s.color });
+  }
+  // Etiquetas finales: si dos chocan, se separan y se unen a su línea con un conector
+  finales.sort((a, b) => a.y - b.y).forEach((f, k) => { f.yl = k && f.y - finales[k - 1].yl < 22 ? finales[k - 1].yl + 22 : f.y; });
+  for (const f of finales) {
+    el('circle', { cx:f.x, cy:f.y, r:5, class:'aparece', style:`fill:${f.color};stroke:var(--superficie);stroke-width:2` }, svg);
+    if (Math.abs(f.yl - f.y) > 1) el('line', { x1:f.x + 7, y1:f.y, x2:f.x + 14, y2:f.yl, class:'aparece', style:'stroke:var(--texto-3)' }, svg);
+    el('text', { x:f.x + 16, y:f.yl + 5, class:'fin aparece' }, svg).textContent = f.texto;
+  }
+  if (o.ejes === false) return;
+  const cruz = el('line', { y1:m.s, y2:H - m.b, style:'stroke:var(--texto-3);opacity:0' }, svg);
+  const capa = el('rect', { x:m.i - paso / 2, y:0, width:W - m.i - m.d + paso, height:H, fill:'transparent' }, svg);
+  capa.addEventListener('mousemove', e => {
+    const i = Math.max(0, Math.min(n - 1, Math.round((aSvg(svg, e).x - m.i) / paso)));
+    cruz.setAttribute('x1', x(i)); cruz.setAttribute('x2', x(i)); cruz.style.opacity = 1;
+    const vistos = new Set();
+    let filas = '';
+    for (const s of o.series) {
+      const v = s.valores[i];
+      if (v == null || vistos.has(s.clave)) continue;
+      vistos.add(s.clave);
+      filas += filaTip(s.color, s.nombre, fmt(v));
+    }
+    mostrarTip(`<b>${o.titulo(i)}</b>${filas}`, e.clientX, e.clientY);
+  });
+  capa.addEventListener('mouseleave', () => { cruz.style.opacity = 0; ocultarTip(); });
+}
+
+// Los gráficos SVG se vuelven a dibujar si cambia el tamaño de la ventana (por ejemplo, al pasar a pantalla completa)
+const graficos = [];
+function grafico(cont, construir) { graficos.push([cont, construir]); construir(); }
+let espera;
+addEventListener('resize', () => {
+  clearTimeout(espera);
+  espera = setTimeout(() => graficos.forEach(([cont, construir]) => { cont.replaceChildren(); construir(); }), 200);
+});
+
+// ---------- Cifras del guion ----------
+document.querySelectorAll('[data-k]').forEach(e => {
+  e.dataset.valor = D.kpi[e.dataset.k];
+  e.textContent = fmt(D.kpi[e.dataset.k], +(e.dataset.dec || 0));
+});
+function contar(diapo) {  // las cifras con data-contar suben desde 0 al entrar en la diapositiva
+  diapo.querySelectorAll('[data-contar]').forEach(e => {
+    const fin = +e.dataset.valor, dec = +(e.dataset.dec || 0), t0 = performance.now();
+    const paso = t => {
+      const k = Math.min(1, (t - t0) / 1100);
+      e.textContent = fmt(fin * (1 - (1 - k) ** 3), dec);
+      if (k < 1) requestAnimationFrame(paso);
+    };
+    requestAnimationFrame(paso);
+  });
+}
+
+// ---------- 1 · Portada: ventas totales de fondo ----------
+const meses = [...D.meses, '2026-07'], ult = D.meses.length - 1;
+{
+  const total = D.meses.map((_, i) => LINEAS.reduce((a, l) => a + D.por_linea[l][i], 0));
+  const totalJulio = LINEAS.reduce((a, l) => a + D.julio_por_linea[l], 0);
+  grafico($('#g-portada'), () => grafLineas($('#g-portada'), { etiquetas:meses, ejes:false, series:[
+    { color:'var(--serie1)', valores:[...total, null], area:true },
+    { color:'var(--serie1)', discontinua:true, valores:meses.map((_, i) => i === ult ? total[ult] : i === ult + 1 ? totalJulio : null) },
+  ] }));
+}
+
+// ---------- 2 · Las 18 series en miniatura ----------
+{
+  const maximo = Math.max(...D.series.flatMap(s => s.ventas));
+  for (const canal of ['store', 'ecommerce']) {
+    let celdas = '<div></div>' + REGIONES.map(r => `<div class="cab">${NOMBRE[r]}</div>`).join('');
+    for (const linea of LINEAS) {
+      celdas += `<div class="nom"><i class="punto" style="--c:${COLOR[linea]}"></i>${NOMBRE[linea]}</div>`;
+      celdas += REGIONES.map(r => `<div class="mini" data-serie="${canal}|${linea}|${r}"></div>`).join('');
+    }
+    $('#series18').insertAdjacentHTML('beforeend', `<div class="tarjeta"><h3>${NOMBRE[canal]}</h3><div class="rejilla18">${celdas}</div></div>`);
+  }
+  document.querySelectorAll('.mini').forEach(div => {
+    const [canal, linea, region] = div.dataset.serie.split('|');
+    const s = D.series.find(s => s.canal === canal && s.linea === linea && s.region === region);
+    const svg = el('svg', { viewBox:'0 0 100 40', preserveAspectRatio:'none' }, div);
+    const pts = s.ventas.map((v, i) => `${(i / (s.ventas.length - 1) * 100).toFixed(2)},${(40 - v / maximo * 38).toFixed(2)}`);
+    el('path', { d:`M0,40L${pts.join('L')}L100,40Z`, style:`fill:${COLOR[linea]};fill-opacity:.14` }, svg);
+    el('path', { d:`M${pts.join('L')}`, 'vector-effect':'non-scaling-stroke', style:`fill:none;stroke:${COLOR[linea]};stroke-width:1.8` }, svg);
+    div.addEventListener('mousemove', e => mostrarTip(`<b>${nombreSerie(s)}</b>` +
+      filaTip(COLOR[linea], 'Media mensual', fmt(s.ventas.reduce((a, b) => a + b) / s.ventas.length)) +
+      filaTip(COLOR[linea], 'Máximo', fmt(Math.max(...s.ventas))), e.clientX, e.clientY));
+    div.addEventListener('mouseleave', ocultarTip);
+  });
+}
+
+// ---------- 3 · Mapa de calor: ventas o roturas de stock ----------
+{
+  const todas = D.series.flatMap(s => s.ventas), minimo = Math.min(...todas), maximo = Math.max(...todas);
+  const mapa = $('#mapa');
+  let html = '<div style="grid-row:1"></div>';
+  [2021, 2022, 2023, 2024, 2025, 2026].forEach((a, k) =>
+    html += `<div class="anio" style="grid-column:${2 + 12 * k} / span ${a === 2026 ? 6 : 12}">${a}</div>`);
+  D.series.forEach((s, k) => {
+    html += `<div class="fila-etq"><i class="punto" style="--c:${COLOR[s.linea]}"></i>${nombreSerie(s)}</div>`;
+    html += s.ventas.map((v, j) => `<div class="c${s.rotura[j] ? ' r' : ''}" style="--v:${Math.round(100 * (v - minimo) / (maximo - minimo))}%;--i:${j}" data-s="${k}" data-m="${j}"></div>`).join('');
+  });
+  mapa.innerHTML = html;
+  mapa.addEventListener('mousemove', e => {
+    const c = e.target.closest('.c');
+    if (!c) return ocultarTip();
+    const s = D.series[c.dataset.s], j = +c.dataset.m;
+    mostrarTip(`<b>${nombreSerie(s)}</b><div class="etq">${mesTxt(D.meses[j])}</div>` +
+      filaTip(COLOR[s.linea], 'Vendidas', fmt(s.ventas[j])) + filaTip('var(--texto-3)', 'Stock inicial', fmt(s.stock[j])) +
+      (s.rotura[j] ? filaTip('var(--critico)', 'Rotura de stock', '⚠ sí') : ''), e.clientX, e.clientY);
+  });
+  mapa.addEventListener('mouseleave', ocultarTip);
+  const diapo = mapa.closest('.diapo');
+  diapo.querySelectorAll('.conmutador button').forEach(b => b.addEventListener('click', () => {
+    mapa.className = `mapa ${b.dataset.modo}`;
+    diapo.querySelectorAll('.conmutador button').forEach(o => o.setAttribute('aria-pressed', o === b));
+    diapo.querySelectorAll('.leyenda [data-modo]').forEach(l => { l.hidden = l.dataset.modo !== b.dataset.modo; });
+  }));
+}
+
+// ---------- 4 · Ventas por línea con la previsión de julio ----------
+{
+  const series = LINEAS.map(l => ({ clave:l, nombre:NOMBRE[l], color:COLOR[l], valores:[...D.por_linea[l], null] }));
+  for (const l of LINEAS) series.push({ clave:l, nombre:`${NOMBRE[l]} (previsión)`, color:COLOR[l], discontinua:true, etiqueta:NOMBRE[l],
+    valores:meses.map((_, i) => i === ult ? D.por_linea[l][ult] : i === ult + 1 ? D.julio_por_linea[l] : null) });
+  grafico($('#g-hipotesis'), () => grafLineas($('#g-hipotesis'), { etiquetas:meses, series,
+    marcasX:meses.flatMap((m, i) => m.endsWith('-01') ? [[i, m.slice(0, 4)]] : []),
+    titulo:i => mesTxt(meses[i]) + (i > ult ? ' · previsión' : '') }));
+  leyenda($('#ley-hipo'), [...LINEAS.map(l => ({ nombre:NOMBRE[l], color:COLOR[l] })), { nombre:'previsión de julio', color:'var(--texto-3)', disc:true }]);
+}
+
+// ---------- 5 · El botón de la trampa ----------
+$('#btn-trampa').addEventListener('click', e => {
+  const activa = $('#trampa').classList.toggle('activa'), cifra = $('#mae-trampa');
+  e.currentTarget.setAttribute('aria-pressed', activa);
+  e.currentTarget.textContent = activa ? 'Deshacer la trampa' : 'Hacer trampa con revenue';
+  if (!activa) { cifra.textContent = '—'; return; }
+  const desde = D.kpi.mae_ref, hasta = D.kpi.mae_fuga, t0 = performance.now();
+  const paso = t => {  // el error cae desde la referencia honesta hasta casi cero
+    const k = Math.min(1, (t - t0) / 900);
+    cifra.textContent = fmt(desde + (hasta - desde) * (1 - (1 - k) ** 3), 1);
+    if (k < 1) requestAnimationFrame(paso);
+  };
+  requestAnimationFrame(paso);
+});
+
+// ---------- 6 · Carrera de modelos ----------
+{
+  const NOMBRE_MODELO = { group_mean:'Media de cada serie', seasonal_lag12:'Mismo mes del año anterior',
+                          ridge_1:'Ridge · α = 1', ridge_10:'Ridge · α = 10', ridge_100:'Ridge · α = 100' };
+  const val = D.modelos.filter(m => m.periodo.startsWith('validación')).sort((a, b) => b.MAE_units - a.MAE_units);
+  $('#barras').innerHTML = val.map((m, k) => {
+    const ridge = m.model.startsWith('ridge'), elegido = m.model === D.elegido;
+    return `<div class="fila-barra${elegido ? ' elegido' : ''}"><span class="nombre">${NOMBRE_MODELO[m.model] ?? m.model}${elegido ? ' · elegido' : ''}</span>
+      <div class="pista-barra"><div class="barra" style="--w:${(m.MAE_units / val[0].MAE_units * 85).toFixed(1)}%;--d:${(k * .15).toFixed(2)}s;--c:${ridge ? 'var(--serie1)' : 'var(--gris)'}"></div>
+      <span class="valor" style="--d:${(k * .15).toFixed(2)}s">${fmt(m.MAE_units, 1)}</span></div></div>`;
+  }).join('');
+}
+
+// ---------- 7 · Prueba: real frente a previsto ----------
+{
+  const p = D.prueba, todos = [...p.real, ...p.prevista];
+  const yMin = Math.floor(Math.min(...todos) * .9 / 100) * 100;
+  const series = [
+    { clave:'r', nombre:'Real', etiqueta:'Real', color:'var(--serie1)', valores:p.real },
+    { clave:'p', nombre:'Prevista', etiqueta:'Prevista', color:'var(--serie2)', valores:p.prevista },
+  ];
+  grafico($('#g-prueba'), () => grafLineas($('#g-prueba'), { etiquetas:p.meses, series, yMin, puntos:true, margenDcho:100,
+    marcasX:p.meses.map((m, i) => [i, MES[+m.slice(5, 7) - 1]]), titulo:i => mesTxt(p.meses[i]) }));
+  leyenda($('#ley-prueba'), series);
+  const peor = p.peor, maximo = Math.max(peor.real, peor.prevista);
+  $('#peor-caso').innerHTML = `<b>${mesTxt(peor.mes)}</b> · ${NOMBRE[peor.canal]} · ${NOMBRE[peor.linea]} · ${NOMBRE[peor.region]}`;
+  $('#duelo').innerHTML = [['Prevista', peor.prevista, 'var(--serie2)'], ['Real', peor.real, 'var(--serie1)']].map(([n, v, c]) =>
+    `<div><span>${n}</span><i style="--c:${c};--w:${(v / maximo * 100).toFixed(1)}%"></i><b>${fmt(v)}</b></div>`).join('');
+  $('#peor-falta').dataset.valor = peor.real - peor.prevista;
+}
+
+// ---------- 8 · Puesta en marcha: una fila recorre el Pipeline ----------
+// Cada paso tiene un nodo en la tubería, un panel en la escena y unas líneas en la terminal.
+// Cada paso se ve en dos pulsaciones: primero cómo llegan los datos (antes) y luego qué hace el paso (después).
+// La flecha → avanza media fase; después del último paso, pasa a la siguiente diapositiva.
+{
+  const E = D.entrenamiento, ej = E.ejemplo, A = E.aportes, diapo = $('#d-entreno'), escena = $('#escena'), term = $('#terminal');
+  const sub = n => String(n).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+  const serieEj = `${NOMBRE[ej.canal]} · ${NOMBRE[ej.linea]} · ${NOMBRE[ej.region]}`;
+  const numericas = E.columnas - E.onehot.length;
+
+  const NODOS = [['DataFrame', `${fmt(E.filas)} filas`], ['SimpleImputer', 'nulos → mediana'], ['OneHotEncoder', 'categorías → 0/1'],
+                 ['StandardScaler', 'misma escala'], ['Ridge(α=100)', `aprende ${E.columnas} pesos`], ['.predict()', 'una previsión'],
+                 ['joblib', 'guardar y usar']];
+  $('#tuberia').insertAdjacentHTML('beforeend', NODOS.map(([codigo, texto], k) =>
+    `<button class="nodo" data-paso="${k + 1}"><span class="bola">${k + 1}</span><code class="mono">${codigo}</code><small>${texto}</small></button>`).join(''));
+  const nodos = [...diapo.querySelectorAll('.nodo')];
+
+  // Cabecera de cada paso: el código, la pastilla antes → después y dos textos que se intercambian
+  const titulo = (codigo, [hAntes, pAntes], [hDespues, pDespues]) => `<div class="tit"><code class="mono">${codigo}</code>
+    <div class="ad"><span class="a">antes</span><b>→</b><span class="d">después</span></div>
+    <h3 class="swap"><span class="a">${hAntes}</span><span class="d">${hDespues}</span></h3>
+    <p class="swap"><span class="a">${pAntes}</span><span class="d">${pDespues}</span></p></div>`;
+
+  // Las 648 filas de entrenamiento: 18 series × 36 meses, cada cuadro una fila
+  const todas = E.ventas.flat(), lo = Math.min(...todas), hi = Math.max(...todas);
+  const meses36 = D.meses.filter(m => m >= '2022-01' && m < '2025-01');
+  const iEj = D.series.findIndex(s => s.canal === ej.canal && s.linea === ej.linea && s.region === ej.region);
+  const jEj = meses36.indexOf(ej.mes);
+  const rejilla = (fija, nulos) => `<div class="r648${fija ? ' fija' : ''}">${E.ventas.map((fila, i) => fila.map((v, j) =>
+    `<i style="--v:${Math.round(100 * (v - lo) / (hi - lo))}%;--i:${j}" class="${i === iEj && j === jEj ? 'ej' : ''}${nulos && E.nulo[i][j] ? ' n' : ''}"></i>`
+  ).join('')).join('')}</div>`;
+
+  // La ficha de nuestra fila. En el paso 1 lleva también las columnas del cierre, que «después» quedan fuera
+  const ficha = (presupuesto, conCierre) => `<dl class="ficha">
+    <dt class="grupo">${conCierre ? '<span class="swap"><span class="a">una fila de sales_history.csv</span><span class="d">X · lo que se sabe antes del mes</span></span>' : 'X · lo que se sabe antes del mes'}</dt>
+    <dt>Mes</dt><dd>${mesTxt(ej.mes)}</dd><dt>Serie</dt><dd>${serieEj}</dd><dt>Campaña</dt><dd>${ej.campana}</dd>
+    <dt>Presupuesto</dt><dd>${presupuesto}</dd><dt>Descuento previsto</dt><dd>${fmt(100 * ej.descuento, 1)} %</dd>
+    <dt>Stock inicial</dt><dd>${ej.stock}</dd><dt>Ventas del mes anterior</dt><dd>${ej.lag_1}</dd><dt>Ventas de hace un año</dt><dd>${ej.lag_12}</dd>
+    <dt class="grupo${conCierre ? ' oculto' : ''}">y · lo que tiene que aprender</dt><dt>Ventas reales</dt><dd class="y">${ej.ventas}</dd>
+    ${conCierre ? `<dt class="grupo oculto">fuera · solo se conoce al cierre del mes</dt>
+      <dt class="fuera">Ingresos (revenue)</dt><dd class="fuera">${fmt(ej.revenue)} €</dd>
+      <dt class="fuera">Sesiones web</dt><dd class="fuera">${ej.sesiones == null ? 'nulo' : fmt(ej.sesiones)}</dd>
+      <dt class="fuera">Stock final</dt><dd class="fuera">${ej.stock_final}</dd>` : ''}</dl>`;
+
+  // Paso 3: cada categoría se abre en columnas de 0 y 1
+  const grupos = {};
+  E.onehot.forEach(o => (grupos[o.campo] ??= []).push(o));
+  const unoCaliente = Object.entries(grupos).map(([campo, cols], g) => `<div class="oh-fila">
+    <span class="oh-campo">${campo}</span><span class="chip">${cols.find(c => c.uno).valor}</span><span class="oh-flecha">→</span>
+    <div class="oh-cols">${cols.map((c, k) => `<span class="oh${c.uno ? ' uno' : ''}" style="--d:${(g * .25 + k * .07).toFixed(2)}s"><small>${c.valor}</small><b class="mono">${c.uno}</b></span>`).join('')}</div>
+  </div>`).join('');
+
+  // Paso 4: antes, cada columna en sus unidades; después, (x − media) / desviación
+  const maxCrudo = Math.max(...E.escala.map(e => e.crudo)), maxZ = Math.max(...E.escala.map(e => Math.abs(e.z)));
+  const escala = E.escala.map(e => {
+    const wz = Math.abs(e.z) / maxZ * 48;
+    return `<div class="esc-fila" style="--wa:${(e.crudo / maxCrudo * 100).toFixed(2)}%;--wz:${wz.toFixed(2)}%;--xz:${(e.z >= 0 ? 50 : 50 - wz).toFixed(2)}%">
+      <span>${e.nombre}</span><div class="esc-pista"><i></i></div>
+      <span class="esc-v"><b class="a">${fmt(e.crudo, e.crudo < 1 ? 3 : 0)}</b><b class="z">z = ${e.z >= 0 ? '+' : '−'}${fmt(Math.abs(e.z), 2)}</b></span></div>`;
+  }).join('');
+
+  // Paso 6: la previsión es la media más lo que aporta cada columna (cascada). Antes solo se ve la media
+  const cas = [{ n:'media de entrenamiento (β₀)', ini:0, fin:A.base, tipo:'base' }];
+  let acumulado = A.base;
+  for (const p of [...A.principales, { nombre:`resto (${E.columnas - A.principales.length} columnas)`, valor:A.resto }])
+    cas.push({ n:p.nombre, ini:acumulado, fin:acumulado += p.valor, tipo:p.valor >= 0 ? 'mas' : 'menos' });
+  cas.push({ n:'previsión', ini:0, fin:A.prevision, tipo:'total' });
+  const tope = Math.max(A.real, ...cas.map(c => Math.max(c.ini, c.fin))) * 1.06;
+  const cascada = cas.map((c, k) => {
+    const d = `--d:${(.1 + Math.max(k - 1, 0) * .3).toFixed(2)}s`, valor = c.fin - c.ini;
+    const signo = c.tipo === 'mas' ? '+ ' : c.tipo === 'menos' ? '− ' : c.tipo === 'total' ? '= ' : '';
+    const texto = c.tipo === 'base' || c.tipo === 'total' ? fmt(c.fin) : (valor >= 0 ? '+' : '−') + fmt(Math.abs(valor), 1);
+    return `<span class="cas-n">${signo}${c.n}</span>
+      <div class="cas-pista ${c.tipo}" style="--l:${(Math.min(c.ini, c.fin) / tope * 100).toFixed(2)}%;--w:${(Math.abs(valor) / tope * 100).toFixed(2)}%;${d}"><i></i></div>
+      <span class="cas-v" style="${d}">${c.tipo === 'base' ? texto : `<span class="swap"><span class="a">?</span><span class="d">${texto}</span></span>`}</span>`;
+  }).join('') + `<div class="cas-real" style="--r:${(A.real / tope).toFixed(4)};--d:${(.1 + (cas.length - 1) * .3).toFixed(2)}s"><span>real ${A.real}</span></div>`;
+
+  // Paso 7: julio con el modelo guardado (misma regla que el simulador: recortar entre 0 y el stock)
+  const maxStock = Math.max(...D.simulador.map(f => f.stock));
+  const julioMini = D.simulador.map((f, k) => {
+    const prev = Math.round(Math.min(Math.max(f.base, 0), f.stock));
+    return `<i style="--h:${(prev / maxStock * 100).toFixed(1)}%;--c:${prev >= f.stock ? 'var(--critico)' : COLOR[f.linea]};--d:${(.3 + k * .05).toFixed(2)}s"></i>`;
+  }).join('');
+
+  const PANELES = [
+    `<div class="lado"><pre class="codigo mono">modelo = <b>make_pipeline</b>(
+  ColumnTransformer([
+    ('num', <b>SimpleImputer</b>(strategy='median'), NUM),
+    ('cat', <b>OneHotEncoder</b>(), CAT)]),
+  <b>StandardScaler</b>(),
+  <b>Ridge</b>(alpha=100))
+
+modelo.<b>fit</b>(X_2022_2024, y)   # aprende
+joblib.<b>dump</b>(modelo, 'modelo_ridge.joblib')</pre>
+      <div><p class="invita">Vamos a seguir una sola fila por todo el Pipeline.</p>
+        <p class="lead" style="margin:.6rem 0 1.2rem">${mesTxt(ej.mes)} · ${serieEj}: le falta el presupuesto y se vendieron ${ej.ventas} bicis.</p>
+        <p class="etq">En cada paso, una pulsación de <kbd>→</kbd> enseña cómo llegan los datos (<b>antes</b>)
+          y otra aplica el paso (<b>después</b>). También puedes pulsar <b>▶ Entrenar</b>.</p></div></div>`,
+    `${titulo('X, y = filas[variables], filas.sales_units',
+        ['Una fila del CSV, tal cual', `Cada cuadro es una serie en un mes de 2022 a 2024: ${fmt(E.filas)} filas. Nuestra fila trae de todo, también datos que solo se conocen al cerrar el mes.`],
+        ['Se separa en X (lo de antes del mes) e y (lo que hay que aprender)', 'Lo que solo se conoce al cierre se queda fuera: con los ingresos del mes, el modelo haría trampa.'])}
+     <div class="lado"><div>${rejilla(false, false)}<p class="nota pie-r648">18 series × 36 meses · más claro = más ventas · el recuadro es nuestra fila</p></div>${ficha('<span class="nulo">nulo</span>', true)}</div>`,
+    `${titulo("SimpleImputer(strategy='median')",
+        [`Hay ${E.nulos} nulos: ¿qué ponemos en su lugar?`, 'En rojo, las filas con algún nulo. A nuestra fila le falta el presupuesto.'],
+        ['Se rellenan con la mediana, no con 0', 'Un 0 diría «no hubo presupuesto»; la mediana dice «un mes normal». Se calcula solo con 2022–2024 y se guarda dentro del modelo.'])}
+     <div class="lado"><div>${rejilla(true, true)}<p class="nota pie-r648">en rojo, las filas con algún nulo</p></div>${ficha(`<span class="relleno-nulo"><span class="nulo">nulo</span><b>${fmt(E.mediana_presupuesto)} €</b></span>`, false)}</div>`,
+    `${titulo('OneHotEncoder()',
+        ['El modelo no entiende palabras', 'Canal, línea, región y campaña son texto, y un modelo lineal solo sabe multiplicar números.'],
+        ['Cada categoría se abre en columnas de 0 y 1', `«Online» pasa a ser un 1 en la columna online y un 0 en la de tienda. Salen ${E.onehot.length} columnas nuevas.`])}
+     <div class="oh-lista">${unoCaliente}</div>`,
+    `${titulo('StandardScaler()',
+        ['Cada columna habla en sus unidades', 'El presupuesto va en miles de euros y el descuento en décimas: sin escalar, el primero aplastaría al segundo.'],
+        ['Todas pasan a la misma escala', 'Cada valor pasa a «cuántas desviaciones está por encima o por debajo de la media» (z). La línea discontinua es la media.'])}
+     <div class="esc-lista"><div class="esc-cab"><span></span><span class="a">cada columna en sus unidades</span><span class="z">(x − media) ÷ desviación</span></div>${escala}</div>`,
+    `${titulo('Ridge(alpha=100).fit(X, y)',
+        [`${E.columnas} columnas, ${E.columnas} pesos por descubrir`, 'La previsión será la media más cada columna multiplicada por su peso. Todavía no conocemos ningún peso.'],
+        [`Ridge encuentra los ${E.columnas} pesos de una vez`, 'El menor error posible, con un castigo α a los pesos grandes. Azul sube la previsión, rojo la baja. Mueve α:'])}
+     <div class="formula mono">ventas = β₀ + β₁·z₁ + β₂·z₂ + … + β${sub(E.columnas)}·z${sub(E.columnas)}</div>
+     <div class="coefs" id="coefs">${E.top.map(n => `<div class="coef-fila"><span>${n}</span><div class="coef-pista"><i></i></div><b></b></div>`).join('')}</div>
+     <div class="alpha"><span>α</span><div><input type="range" id="ent-alpha" min="0" max="${E.recorrido.length - 1}" step="1" value="2" aria-label="Valor de alpha">
+       <div class="alpha-marcas">${E.recorrido.map(r => `<span>${fmt(r.alpha)}</span>`).join('')}</div></div><span id="ent-lectura"></span></div>`,
+    `${titulo('modelo.predict(fila)',
+        ['¿Cuánto venderá nuestra fila?', `Partimos de la media de entrenamiento (β₀) y sumamos lo que aporta cada columna: peso × valor escalado.`],
+        [`${A.prevision} bicis: la media más lo que aporta cada columna`, `Lo que más empuja es el stock inicial. Luego se recorta entre 0 y el stock. En esta fila se queda corto por ${A.real - A.prevision} bicis.`])}
+     <div class="cascada">${cascada}</div>`,
+    `${titulo('joblib.dump(modelo) → joblib.load(...).predict(julio)',
+        ['Todo lo aprendido se guarda en un archivo', 'Medianas, columnas 0/1, escalas y pesos viajan juntos dentro del Pipeline.'],
+        ['Para julio solo se carga y se predice', 'Sin volver a entrenar: el modelo está congelado.'])}
+     <div class="uso">
+       <div class="archivo"><div class="doc mono">.joblib</div><div><b class="mono">modelo_ridge.joblib</b><div class="etq">${fmt(E.archivo_kb, 1)} KB</div><ul>
+         <li style="--d:.3s">medianas de ${numericas} columnas numéricas</li><li style="--d:.55s">${E.onehot.length} columnas 0/1 aprendidas</li>
+         <li style="--d:.8s">${E.columnas} medias y desviaciones</li><li style="--d:1.05s">${E.columnas} pesos β y la constante β₀</li></ul></div></div>
+       <div class="flecha-uso usar"><span class="mono">load</span><b>→</b><span class="mono">predict</span></div>
+       <div class="usar"><div class="julio-mini">${julioMini}</div>
+         <div class="cifra grande" data-contar data-valor="${D.kpi.prevision_julio}">0</div><div class="etq">bicis previstas para julio de 2026</div></div>
+     </div>`,
+  ];
+  escena.innerHTML = PANELES.map(p => `<div class="panel">${p}</div>`).join('');
+  const paneles = [...escena.querySelectorAll('.panel')];
+
+  // Paso 5: los pesos. Antes están a 0 con «?»; después crecen. Mover α usa pesos ya calculados por el generador
+  const R = E.recorrido, maxC = Math.max(...R.flatMap(r => r.coef.map(Math.abs)));
+  const alpha = $('#ent-alpha'), filasCoef = [...diapo.querySelectorAll('.coef-fila')];
+  let turno = 0;
+  function vaciarCoef() {
+    filasCoef.forEach(f => { const barra = f.querySelector('i'); barra.style.width = '0%'; barra.style.left = '50%'; f.querySelector('b').textContent = '?'; });
+    $('#ent-lectura').textContent = 'sin entrenar';
+  }
+  function pintarAlpha(escalonado) {
+    const r = R[+alpha.value], mio = turno;
+    filasCoef.forEach((f, k) => {
+      const c = r.coef[k], w = Math.abs(c) / maxC * 50, barra = f.querySelector('i');
+      const aplicar = () => {
+        if (mio !== turno) return;
+        barra.style.width = `${w}%`; barra.style.left = `${c >= 0 ? 50 : 50 - w}%`; barra.classList.toggle('neg', c < 0);
+        f.querySelector('b').textContent = (c >= 0 ? '+' : '−') + fmt(Math.abs(c), 1);
+      };
+      escalonado ? setTimeout(aplicar, 120 + k * 70) : aplicar();
+    });
+    $('#ent-lectura').innerHTML = `error en validación <b>${fmt(r.mae, 2)}</b> bicis` +
+      (r.alpha === 100 ? '<span class="mini-chip bien">elegido</span>' : r.mae > 1.5 * R[2].mae ? '<span class="mini-chip mal">deja de aprender</span>' : '');
+  }
+  alpha.addEventListener('input', () => pintarAlpha(false));
+
+  // Terminal: una entrada por estado (0 = inicio; luego antes y después de cada paso)
+  const val = D.modelos.find(m => m.model === D.elegido && m.periodo.startsWith('validación'));
+  const pru = D.modelos.find(m => m.model === D.elegido && m.periodo.startsWith('prueba'));
+  const TERMINAL = [[],
+    [['cmd', 'uv run python src/modelo.py entrenar']],
+    [['com', `# X: ${numericas} columnas numéricas + 4 de texto · y: sales_units`]],
+    [['com', `# SimpleImputer: ${E.nulos} nulos en entrenamiento`]],
+    [['com', `# → rellenados con la mediana (presupuesto: ${fmt(E.mediana_presupuesto)} €)`]],
+    [['com', '# OneHotEncoder: canal, línea, región y campaña son texto']],
+    [['com', `# → ${E.onehot.length} columnas de 0 y 1`]],
+    [['com', '# StandardScaler: cada columna en sus unidades']],
+    [['com', `# → ${E.columnas} columnas con media 0 y desviación 1`]],
+    [['com', '# Ridge(alpha=100).fit(X, y)']],
+    [['out', `Entrenado con ${E.filas} filas (2022–2024)`],
+     ['out', `Validación 2025: MAE ${val.MAE_units.toFixed(2)} bicis · WAPE ${val.WAPE_pct.toFixed(2)} %`],
+     ['out', `Prueba ene–jun 2026: MAE ${pru.MAE_units.toFixed(2)} bicis · WAPE ${pru.WAPE_pct.toFixed(2)} %`]],
+    [['com', `# predict(${ej.mes} ${ej.canal} ${ej.linea} ${ej.region})`]],
+    [['com', `# → ${A.prevision} bicis (real: ${A.real})`]],
+    [['out', 'Modelo guardado en evidencies/modelo_ridge.joblib']],
+    [['cmd', 'uv run python src/modelo.py predecir'], ['out', 'Modelo cargado de evidencies/modelo_ridge.joblib'],
+     ['out', `Julio 2026: ${D.kpi.prevision_julio} bicis previstas de ${D.kpi.stock_julio} en stock.`]],
+  ];
+  const esperar = ms => new Promise(r => setTimeout(r, ms));
+  async function escribir(estado) {
+    const mio = ++turno;
+    term.replaceChildren();
+    const linea = (tipo, texto) => { const l = document.createElement('div'); l.className = tipo; l.textContent = texto; term.append(l); return l; };
+    TERMINAL.slice(0, estado).flat().forEach(([tipo, texto]) => linea(tipo, texto));
+    if (estado === 0) linea('cmd', '');
+    term.scrollTop = term.scrollHeight;
+    for (const [tipo, texto] of TERMINAL[estado]) {
+      await esperar(tipo === 'cmd' ? 250 : 320);
+      if (mio !== turno) return;
+      const l = linea(tipo, '');
+      if (tipo === 'cmd') for (let k = 1; k <= texto.length; k++) { if (mio !== turno) return; l.textContent = texto.slice(0, k); await esperar(22); }
+      else l.textContent = texto;
+      term.scrollTop = term.scrollHeight;
+    }
+  }
+
+  // La tubería: la línea se rellena hasta el nodo activo y el marco rodea los pasos del Pipeline
+  let estado = 0, paso = 0;
+  const ULTIMO = 2 * (paneles.length - 1);
+  function colocar() {
+    const caja = $('#tuberia').getBoundingClientRect();
+    const centro = n => { const r = n.querySelector('.bola').getBoundingClientRect(); return r.left + r.width / 2 - caja.left; };
+    const x0 = centro(nodos[0]);
+    $('#via').style.left = `${x0}px`;
+    $('#via').style.width = `${centro(nodos.at(-1)) - x0}px`;
+    $('#via-relleno').style.width = paso ? `${centro(nodos[paso - 1]) - x0}px` : '0px';
+    const a = nodos[1].getBoundingClientRect(), b = nodos[4].getBoundingClientRect();
+    $('#marco').style.left = `${a.left - caja.left}px`;
+    $('#marco').style.width = `${b.right - a.left}px`;
+  }
+  // Estado 0 = inicio; 2k − 1 = paso k «antes»; 2k = paso k «después»
+  function irEstado(e) {
+    estado = Math.max(0, Math.min(ULTIMO, e));
+    paso = Math.ceil(estado / 2);
+    const despues = estado > 0 && estado % 2 === 0;
+    nodos.forEach((n, k) => {
+      n.classList.toggle('hecho', k + 1 < paso);
+      n.classList.toggle('activo', k + 1 === paso);
+      n.classList.toggle('aplicado', k + 1 === paso && despues);
+    });
+    paneles.forEach((x, k) => { x.classList.toggle('visible', k === paso); x.classList.toggle('despues', k === paso && despues); });
+    colocar();
+    escribir(estado);
+    alpha.disabled = !(paso === 5 && despues);
+    if (paso === 5) { alpha.value = 2; despues ? pintarAlpha(true) : vaciarCoef(); }
+    if (paso === 7 && despues) contar(paneles[7]);
+  }
+
+  // Reproducción automática, botones y enganche con la navegación de diapositivas
+  let auto = null;
+  const play = $('#ent-play');
+  function parar() { clearInterval(auto); auto = null; play.textContent = '▶ Entrenar'; }
+  play.addEventListener('click', () => {
+    if (auto) return parar();
+    irEstado(estado >= ULTIMO ? 1 : estado + 1);
+    play.textContent = '❚❚ Pausa';
+    auto = setInterval(() => (estado >= ULTIMO ? parar() : irEstado(estado + 1)), 3200);
+  });
+  $('#ent-reset').addEventListener('click', () => { parar(); irEstado(0); });
+  nodos.forEach(n => n.addEventListener('click', () => { parar(); irEstado(2 * n.dataset.paso - 1); }));
+  diapo.paso = d => { if (estado + d < 0 || estado + d > ULTIMO) return false; parar(); irEstado(estado + d); return true; };
+  diapo.alEntrar = adelante => { parar(); irEstado(adelante ? 0 : ULTIMO); };
+  diapo.alSalir = parar;
+  addEventListener('resize', colocar);
+  irEstado(0);
+}
+
+// ---------- 9 · Simulador de julio ----------
+// El ridge es lineal: previsión = base + efecto por unidad × cambio. Luego se recorta entre 0 y el stock, como en el notebook.
+{
+  const filas = $('#sim-filas'), escala = Math.max(...D.simulador.map(f => f.stock)) * 1.5;
+  const r = { pres:$('#r-pres'), desc:$('#r-desc'), stock:$('#r-stock') };
+  let html = '';
+  D.simulador.forEach((f, k) => {
+    if (k === 0 || f.canal !== D.simulador[k - 1].canal) html += `<div class="grupo">${NOMBRE[f.canal]}</div>`;
+    html += `<div class="nom"><i class="punto" style="--c:${COLOR[f.linea]}"></i>${NOMBRE[f.linea]} · ${NOMBRE[f.region]}</div>
+      <div class="medidor" style="--c:${COLOR[f.linea]}"><div class="pista"></div><div class="relleno"></div></div><div class="v"></div>`;
+  });
+  filas.innerHTML = html;
+  const medidores = [...filas.querySelectorAll('.medidor')], valores = [...filas.querySelectorAll('.v')];
+  function simular() {
+    const pres = +r.pres.value / 100, desc = +r.desc.value / 100, stock = +r.stock.value / 100;
+    $('#o-pres').textContent = (pres > 0 ? '+' : '') + r.pres.value + ' %';
+    $('#o-desc').textContent = (desc > 0 ? '+' : '') + r.desc.value + ' pp';
+    $('#o-stock').textContent = (stock > 0 ? '+' : '') + r.stock.value + ' %';
+    let total = 0, totalStock = 0, limite = [];
+    D.simulador.forEach((f, k) => {
+      const s = Math.round(f.stock * (1 + stock));
+      const bruta = f.base + f.ef_presupuesto * f.presupuesto * pres + f.ef_descuento * desc + f.ef_stock * (s - f.stock);
+      const prev = Math.round(Math.min(Math.max(bruta, 0), s));
+      total += prev; totalStock += s;
+      const enLimite = prev >= s;
+      if (enLimite) limite.push(`${NOMBRE[f.canal]} · ${NOMBRE[f.linea]} · ${NOMBRE[f.region]}`);
+      medidores[k].classList.toggle('limite', enLimite);
+      medidores[k].querySelector('.pista').style.width = `${s / escala * 100}%`;
+      medidores[k].querySelector('.relleno').style.width = `${prev / escala * 100}%`;
+      valores[k].innerHTML = `${enLimite ? '⚠ ' : ''}<b>${fmt(prev)}</b> / ${fmt(s)}`;
+    });
+    $('#sim-total').textContent = fmt(total);
+    $('#sim-stock').textContent = fmt(totalStock);
+    $('#sim-alerta').innerHTML = limite.length
+      ? `<span><b>${limite.length} series</b> llegan al stock: conviene subirlo.</span>`
+      : '<span>Ninguna serie llega al stock.</span>';
+  }
+  Object.values(r).forEach(i => i.addEventListener('input', simular));
+  $('#sim-reset').addEventListener('click', () => { Object.values(r).forEach(i => { i.value = 0; }); simular(); });
+  simular();
+}
+
+// ---------- 9 · Perfiles de cliente ----------
+$('#segs').innerHTML = D.segmentos.map((s, k) => `
+  <article class="tarjeta seg" style="--c:${COLOR_SEG[k]}">
+    <header><i class="punto"></i><h3>${s.nombre}</h3></header>
+    <div><div class="cifra" data-contar data-valor="${s.clientes}">${fmt(s.clientes)}</div>
+      <div class="etq">clientes · ${fmt(100 * s.clientes / D.kpi.clientes)} %</div></div>
+    <div class="cuota"><div style="--w:${(100 * s.clientes / D.kpi.clientes).toFixed(1)}%"></div></div>
+    <dl><dt>Gasto anual</dt><dd>${fmt(s.gasto)} €</dd><dt>Pedidos al año</dt><dd>${fmt(s.pedidos)}</dd>
+      <dt>Días sin comprar</dt><dd>${fmt(s.recencia)}</dd><dt>Devoluciones</dt><dd>${fmt(100 * s.devoluciones)} %</dd>
+      <dt>Antigüedad</dt><dd>${fmt(s.antiguedad)} meses</dd></dl>
+    <div class="accion">→ ${s.accion}</div>
+  </article>`).join('');
+$('#segs').insertAdjacentHTML('afterend', '<p class="nota">Valores medianos de cada grupo; las devoluciones son la media.</p>');
+
+// ---------- 10 · Nube de clientes ----------
+grafico($('#g-clientes'), () => {
+  const cont = $('#g-clientes'), { svg, W, H } = lienzo(cont);
+  svg.classList.add('disperso');
+  const m = { i:70, d:20, s:24, b:40 };
+  const gastos = D.clientes.map(c => c[0]).filter(g => g > 0);
+  const marcasY = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  const lo = marcasY.filter(t => t <= Math.min(...gastos)).at(-1) ?? 10, hi = marcasY.find(t => t >= Math.max(...gastos)) ?? 50000;
+  const x = d => m.i + d / 365 * (W - m.i - m.d);
+  const y = g => H - m.b - (Math.log(Math.max(g, lo)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) * (H - m.s - m.b);
+  for (const t of marcasY.filter(t => t >= lo && t <= hi)) {
+    el('line', { class:'rejilla', x1:m.i, x2:W - m.d, y1:y(t), y2:y(t) }, svg);
+    el('text', { x:m.i - 10, y:y(t) + 4, 'text-anchor':'end' }, svg).textContent = fmt(t) + ' €';
+  }
+  for (const d of [0, 60, 120, 180, 240, 300, 360]) el('text', { x:x(d), y:H - 14, 'text-anchor':'middle' }, svg).textContent = d;
+  el('text', { x:W - m.d, y:H - 14 - 18, 'text-anchor':'end' }, svg).textContent = 'días desde el último pedido →';
+  el('text', { x:m.i, y:m.s - 10 }, svg).textContent = '↑ gasto anual (escala logarítmica)';
+  const puntos = D.clientes.map(c => ({ c, x:x(c[1]), y:y(c[0]) }));
+  for (const p of puntos) el('circle', { cx:p.x.toFixed(1), cy:p.y.toFixed(1), r:4, class:`p s${p.c[2]}`, style:`fill:${COLOR_SEG[p.c[2]]};fill-opacity:.8` }, svg);
+  const aro = el('circle', { r:8, style:'fill:none;stroke:var(--texto);stroke-width:2;opacity:0;pointer-events:none' }, svg);
+  svg.addEventListener('mousemove', e => {
+    const q = aSvg(svg, e), solo = svg.dataset.solo;
+    let mejor = null, dist = 196;  // radio de 14 unidades
+    for (const p of puntos) {
+      if (solo != null && p.c[2] !== +solo) continue;
+      const dd = (p.x - q.x) ** 2 + (p.y - q.y) ** 2;
+      if (dd < dist) { dist = dd; mejor = p; }
+    }
+    if (!mejor) { aro.style.opacity = 0; return ocultarTip(); }
+    aro.setAttribute('cx', mejor.x); aro.setAttribute('cy', mejor.y); aro.style.opacity = 1;
+    const [gasto, dias, seg, id, pedidos, dev] = mejor.c;
+    mostrarTip(`<b>${id}</b>` + filaTip(COLOR_SEG[seg], 'Segmento', D.segmentos[seg].nombre) +
+      filaTip('var(--texto-3)', 'Gasto anual', fmt(gasto) + ' €') + filaTip('var(--texto-3)', 'Pedidos', fmt(pedidos)) +
+      filaTip('var(--texto-3)', 'Días sin comprar', fmt(dias)) + filaTip('var(--texto-3)', 'Devoluciones', fmt(dev) + ' %') +
+      `<div class="etq" style="margin-top:.3rem">→ ${D.segmentos[seg].accion}</div>`, e.clientX, e.clientY);
+  });
+  svg.addEventListener('mouseleave', () => { aro.style.opacity = 0; ocultarTip(); });
+  const filtros = $('#filtros');
+  filtros.innerHTML = `<button data-solo="" aria-pressed="true">Todos</button>` + D.segmentos.map((s, k) =>
+    `<button data-solo="${k}" aria-pressed="false"><i class="punto" style="--c:${COLOR_SEG[k]}"></i>${s.nombre} · ${fmt(s.clientes)}</button>`).join('');
+  filtros.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.solo === '') delete svg.dataset.solo; else svg.dataset.solo = b.dataset.solo;
+    filtros.querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', o === b));
+  }));
+});
+
+// ---------- Navegación, notas del presentador y tema ----------
+const diapos = [...document.querySelectorAll('.diapo')];
+let actual = -1, inicio = Date.now(), inicioDiapo = Date.now();
+const segundos = t => { const [mm, ss] = t.split(':'); return +mm * 60 + +ss; };
+const reloj = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function ir(i) {
+  i = Math.max(0, Math.min(diapos.length - 1, i));
+  if (i === actual) return;
+  const adelante = i > actual;
+  diapos[actual]?.classList.remove('actual');
+  diapos[actual]?.alSalir?.();
+  actual = i; inicioDiapo = Date.now();
+  diapos[i].classList.add('actual');
+  diapos[i].alEntrar?.(adelante);
+  contar(diapos[i]);
+  ocultarTip();
+  const nota = D.notas[i + 1];
+  $('#pie-bloque').textContent = `BiciTierra Market · ${nota.quien}`;
+  $('#pie-num').textContent = `${i + 1} / ${diapos.length}`;
+  $('#progreso').style.width = `${(i + 1) / diapos.length * 100}%`;
+  $('#n-titulo').textContent = `${i + 1} · ${nota.titulo}`;
+  $('#n-quien').textContent = nota.quien;
+  $('#n-texto').textContent = nota.texto.replaceAll('`', '');
+  history.replaceState(null, '', `#${i + 1}`);
+  tic();
+}
+function tic() {  // reloj total y tiempo de esta diapositiva frente al objetivo del guion
+  const nota = D.notas[actual + 1], aqui = (Date.now() - inicioDiapo) / 1000;
+  $('#n-tiempo').innerHTML = `esta: <span class="${aqui > segundos(nota.tiempo) ? 'pasado' : ''}">${reloj(aqui)}</span> / ${nota.tiempo}`;
+  $('#n-reloj').textContent = `total ${reloj((Date.now() - inicio) / 1000)} · R reinicia`;
+}
+setInterval(tic, 1000);
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const enDeslizador = e.target.matches('input'), enBoton = e.target.matches('button');
+  if (enDeslizador && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+  switch (e.key) {
+    // Si la diapositiva tiene pasos (la del entrenamiento), la flecha avanza un paso antes de cambiar de diapositiva
+    case 'ArrowRight': case 'ArrowDown': case 'PageDown': if (!diapos[actual].paso?.(1)) ir(actual + 1); break;
+    case ' ': case 'Enter': if (enBoton) return; if (!diapos[actual].paso?.(1)) ir(actual + 1); break;
+    case 'ArrowLeft': case 'ArrowUp': case 'PageUp': if (!diapos[actual].paso?.(-1)) ir(actual - 1); break;
+    case 'Home': ir(0); break;
+    case 'End': ir(diapos.length - 1); break;
+    case 'n': case 'N': $('#notas').hidden = !$('#notas').hidden; break;
+    case 'f': case 'F': document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); break;
+    case 't': case 'T': {
+      const tema = document.documentElement.dataset.tema === 'claro' ? 'oscuro' : 'claro';
+      document.documentElement.dataset.tema = tema;
+      try { localStorage.setItem('tema', tema); } catch {}
+      break;
+    }
+    case 'r': case 'R': inicio = inicioDiapo = Date.now(); tic(); break;
+    default: return;
+  }
+  e.preventDefault();
+  if (enDeslizador) e.target.blur();
+});
+try { const t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.tema = t; } catch {}
+ir((parseInt(location.hash.slice(1)) || 1) - 1);
+</script>
+</body>
+</html>

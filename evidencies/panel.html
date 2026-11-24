@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel BiciTierra Market</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --fondo:#f6f7f9; --tarjeta:#fff; --texto:#1d2330; --suave:#5b6474; --borde:#e2e5ea;
+          --urban:#2f6fde; --mountain:#2e9d6b; --electric:#d9822b; --aviso:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--fondo); color:var(--texto); }
+  header { padding:24px 16px 8px; max-width:1200px; margin:auto; }
+  h1 { margin:0 0 4px; font-size:1.6rem; }
+  header p { margin:0; color:var(--suave); }
+  main { max-width:1200px; margin:auto; padding:16px; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); }
+  section { background:var(--tarjeta); border:1px solid var(--borde); border-radius:12px; padding:16px; min-width:0; }
+  section.ancho { grid-column:1/-1; }
+  h2 { font-size:1.05rem; margin:0 0 4px; }
+  .pregunta { color:var(--suave); font-size:.9rem; margin:0 0 12px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+  .kpi { border:1px solid var(--borde); border-radius:10px; padding:12px; }
+  .kpi b { display:block; font-size:1.5rem; }
+  .kpi span { color:var(--suave); font-size:.85rem; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--borde); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tabla { overflow-x:auto; }
+  .limite { color:var(--aviso); font-weight:600; }
+  .etiqueta { display:inline-block; padding:2px 8px; border-radius:99px; background:#fdecea; color:var(--aviso); font-size:.78rem; }
+  ul { margin:0; padding-left:20px; } li { margin:6px 0; }
+  canvas { max-height:320px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BiciTierra Market · Panel de ventas y clientes</h1>
+  <p>Datos sintéticos. Histórico enero 2021 – junio 2026; julio 2026 es una <strong>previsión no validada</strong>.</p>
+</header>
+<main>
+  <section class="ancho">
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section class="ancho">
+    <h2>Ventas mensuales por línea de producto</h2>
+    <p class="pregunta">¿Cuándo se vende más y hacia dónde va cada línea? La línea discontinua es la previsión de julio.</p>
+    <canvas id="g_mensual"></canvas>
+  </section>
+
+  <section>
+    <h2>Ventas 2025 por canal y producto</h2>
+    <p class="pregunta">¿Dónde se concentra el volumen? (unidades)</p>
+    <canvas id="g_canal"></canvas>
+  </section>
+
+  <section>
+    <h2>Comparativa de modelos</h2>
+    <p class="pregunta">¿Merece la pena el modelo frente a las referencias? Error medio en unidades (MAE).</p>
+    <canvas id="g_modelos"></canvas>
+  </section>
+
+  <section>
+    <h2>Segmentos de clientes</h2>
+    <p class="pregunta">¿Qué perfiles hay y qué hacemos con cada uno?</p>
+    <div class="tabla"><table id="t_segmentos"></table></div>
+  </section>
+
+  <section>
+    <h2>Previsión de julio 2026 frente al stock</h2>
+    <p class="pregunta">¿Dónde puede faltar stock? <span class="etiqueta">previsión</span></p>
+    <div class="tabla"><table id="t_julio"></table></div>
+  </section>
+
+  <section class="ancho">
+    <h2>Conclusiones</h2>
+    <ul>
+      <li><strong>Stock:</strong> en tres series de tienda física la previsión llega al stock disponible. Recomendamos subir su stock y añadir un margen en <code>ecommerce</code> + <code>metro</code> y en <code>urban</code>, donde el modelo se queda corto.</li>
+      <li><strong>Modelo:</strong> ridge reduce el error frente a repetir el año anterior, pero en 2026 se queda corto de media en unas 14 bicis por serie porque las ventas crecen.</li>
+      <li><strong>Campaña:</strong> el pico de verano coincide con la campaña <code>summer</code>; no podemos separar su efecto del de la temporada. Conviene medirlo con una prueba.</li>
+      <li><strong>Clientes:</strong> reactivar a los ocasionales con el servicio técnico, fidelizar a los veteranos y revisar las causas de las devoluciones altas.</li>
+    </ul>
+  </section>
+</main>
+<script>
+const D = {"meses": ["2021-01", "2021-02", "2021-03", "2021-04", "2021-05", "2021-06", "2021-07", "2021-08", "2021-09", "2021-10", "2021-11", "2021-12", "2022-01", "2022-02", "2022-03", "2022-04", "2022-05", "2022-06", "2022-07", "2022-08", "2022-09", "2022-10", "2022-11", "2022-12", "2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"], "lineas": {"electric": [213, 215, 327, 331, 317, 396, 408, 305, 251, 251, 292, 271, 259, 282, 323, 372, 382, 434, 465, 385, 343, 295, 326, 325, 256, 308, 309, 390, 457, 391, 488, 415, 389, 362, 304, 305, 308, 356, 363, 500, 446, 400, 469, 365, 390, 288, 345, 349, 304, 336, 422, 555, 413, 514, 505, 466, 411, 357, 339, 349, 359, 376, 445, 591, 584, 504, null], "mountain": [351, 448, 561, 822, 576, 641, 793, 539, 486, 419, 411, 436, 309, 407, 571, 613, 663, 767, 782, 561, 517, 442, 444, 436, 429, 463, 532, 686, 685, 692, 787, 700, 545, 459, 445, 396, 420, 492, 550, 748, 728, 620, 791, 634, 522, 472, 406, 464, 427, 493, 558, 773, 678, 794, 853, 668, 555, 511, 466, 522, 461, 569, 594, 850, 862, 814, null], "urban": [662, 720, 837, 1016, 876, 900, 1022, 805, 765, 726, 806, 735, 702, 723, 885, 915, 842, 964, 1057, 823, 842, 709, 827, 761, 634, 853, 873, 985, 848, 964, 1040, 982, 865, 805, 773, 774, 751, 771, 801, 985, 909, 792, 1142, 800, 741, 736, 866, 800, 683, 638, 823, 1011, 846, 975, 1074, 905, 765, 778, 788, 865, 849, 790, 916, 1247, 995, 1072, null]}, "prevision": {"electric": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 504, 526], "mountain": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 814, 818], "urban": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1072, 1054]}, "canal_producto": {"productos": ["electric", "mountain", "urban"], "canales": {"ecommerce": [2827, 4122, 5761], "store": [2144, 3176, 4390]}}, "modelos": [{"model": "ridge_100", "MAE_units": 12.05, "WAPE_pct": 11.61, "periodo": "validación 2025"}, {"model": "ridge_10", "MAE_units": 12.37, "WAPE_pct": 11.92, "periodo": "validación 2025"}, {"model": "ridge_1", "MAE_units": 12.43, "WAPE_pct": 11.98, "periodo": "validación 2025"}, {"model": "seasonal_lag12", "MAE_units": 17.4, "WAPE_pct": 16.77, "periodo": "validación 2025"}, {"model": "group_mean", "MAE_units": 18.75, "WAPE_pct": 18.06, "periodo": "validación 2025"}, {"model": "ridge_100", "MAE_units": 16.14, "WAPE_pct": 13.53, "periodo": "prueba ene–jun 2026"}, {"model": "seasonal_lag12", "MAE_units": 21.24, "WAPE_pct": 17.81, "periodo": "prueba ene–jun 2026"}, {"model": "group_mean", "MAE_units": 26.93, "WAPE_pct": 22.58, "periodo": "prueba ene–jun 2026"}], "segmentos": [{"cluster": "fieles_veteranos", "clientes": 650, "gasto_mediano": 1349.59, "pedidos_medianos": 6.0, "recencia_mediana": 30.5, "devoluciones_medias": 0.05, "antiguedad_mediana": 92.0}, {"cluster": "devoluciones_altas", "clientes": 174, "gasto_mediano": 369.48, "pedidos_medianos": 3.0, "recencia_mediana": 52.5, "devoluciones_medias": 0.4, "antiguedad_mediana": 66.0}, {"cluster": "ocasionales_inactivos", "clientes": 532, "gasto_mediano": 216.45, "pedidos_medianos": 2.0, "recencia_mediana": 113.5, "devoluciones_medias": 0.0, "antiguedad_mediana": 63.0}, {"cluster": "nuevos_activos", "clientes": 644, "gasto_mediano": 1456.22, "pedidos_medianos": 6.0, "recencia_mediana": 33.0, "devoluciones_medias": 0.05, "antiguedad_mediana": 31.0}], "julio": [{"month": "2026-07", "channel": "store", "product_line": "urban", "region": "coast", "predicted_sales_units": 172, "stock_units": 237, "en_limite": false}, {"month": "2026-07", "channel": "store", "product_line": "urban", "region": "inland", "predicted_sales_units": 112, "stock_units": 112, "en_limite": true}, {"month": "2026-07", "channel": "store", "product_line": "urban", "region": "metro", "predicted_sales_units": 198, "stock_units": 244, "en_limite": false}, {"month": "2026-07", "channel": "store", "product_line": "mountain", "region": "coast", "predicted_sales_units": 135, "stock_units": 136, "en_limite": false}, {"month": "2026-07", "channel": "store", "product_line": "mountain", "region": "inland", "predicted_sales_units": 111, "stock_units": 130, "en_limite": false}, {"month": "2026-07", "channel": "store", "product_line": "mountain", "region": "metro", "predicted_sales_units": 108, "stock_units": 108, "en_limite": true}, {"month": "2026-07", "channel": "store", "product_line": "electric", "region": "coast", "predicted_sales_units": 92, "stock_units": 113, "en_limite": false}, {"month": "2026-07", "channel": "store", "product_line": "electric", "region": "inland", "predicted_sales_units": 45, "stock_units": 45, "en_limite": true}, {"month": "2026-07", "channel": "store", "product_line": "electric", "region": "metro", "predicted_sales_units": 101, "stock_units": 117, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "urban", "region": "coast", "predicted_sales_units": 224, "stock_units": 336, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "urban", "region": "inland", "predicted_sales_units": 154, "stock_units": 159, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "urban", "region": "metro", "predicted_sales_units": 194, "stock_units": 250, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "mountain", "region": "coast", "predicted_sales_units": 162, "stock_units": 213, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "mountain", "region": "inland", "predicted_sales_units": 108, "stock_units": 117, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "mountain", "region": "metro", "predicted_sales_units": 194, "stock_units": 246, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "electric", "region": "coast", "predicted_sales_units": 107, "stock_units": 122, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "electric", "region": "inland", "predicted_sales_units": 75, "stock_units": 85, "en_limite": false}, {"month": "2026-07", "channel": "ecommerce", "product_line": "electric", "region": "metro", "predicted_sales_units": 106, "stock_units": 181, "en_limite": false}], "kpi": {"ventas_2025": 22420, "mae_prueba": 16.1, "wape_prueba": 13.5, "prevision_julio": 2398, "clientes": 2000, "modelo": "ridge_100"}};
+const COLOR = { urban:'#2f6fde', mountain:'#2e9d6b', electric:'#d9822b' };
+const fmt = n => n.toLocaleString('es-ES');
+
+document.getElementById('kpis').innerHTML = [
+  [fmt(D.kpi.ventas_2025), 'bicis vendidas en 2025'],
+  [D.kpi.mae_prueba.toLocaleString('es-ES') + ' ud.', 'error medio por serie y mes (prueba 2026)'],
+  [D.kpi.wape_prueba.toLocaleString('es-ES') + ' %', 'error relativo (WAPE, prueba 2026)'],
+  [fmt(D.kpi.prevision_julio), 'bicis previstas en julio 2026'],
+  [fmt(D.kpi.clientes), 'clientes segmentados'],
+].map(([v, t]) => `<div class="kpi"><b>${v}</b><span>${t}</span></div>`).join('');
+
+const series = [];
+for (const linea of Object.keys(D.lineas)) {
+  series.push({ label: linea, data: D.lineas[linea], borderColor: COLOR[linea], backgroundColor: COLOR[linea], pointRadius: 0, borderWidth: 2 });
+  series.push({ label: linea + ' (previsión)', data: D.prevision[linea], borderColor: COLOR[linea], borderDash: [6, 4], pointRadius: 3, borderWidth: 2 });
+}
+new Chart(g_mensual, { type: 'line', data: { labels: D.meses, datasets: series },
+  options: { responsive: true, interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { filter: i => !i.text.includes('previsión') } } },
+    scales: { y: { title: { display: true, text: 'unidades' } } } } });
+
+new Chart(g_canal, { type: 'bar', data: { labels: D.canal_producto.productos,
+  datasets: Object.entries(D.canal_producto.canales).map(([c, v], i) => ({ label: c, data: v, backgroundColor: i ? '#7a8699' : '#1d2330' })) },
+  options: { responsive: true, scales: { y: { title: { display: true, text: 'unidades' } } } } });
+
+const val = D.modelos.filter(m => m.periodo.startsWith('validación'));
+const pru = Object.fromEntries(D.modelos.filter(m => m.periodo.startsWith('prueba')).map(m => [m.model, m.MAE_units]));
+new Chart(g_modelos, { type: 'bar', data: { labels: val.map(m => m.model),
+  datasets: [{ label: 'validación 2025', data: val.map(m => m.MAE_units), backgroundColor: '#7a8699' },
+             { label: 'prueba ene–jun 2026', data: val.map(m => pru[m.model] ?? null), backgroundColor: '#2f6fde' }] },
+  options: { responsive: true, scales: { y: { title: { display: true, text: 'MAE (unidades)' } } } } });
+
+const ACCION = { fieles_veteranos: 'Programa de fidelidad', nuevos_activos: 'Bienvenida al 2.º año',
+  ocasionales_inactivos: 'Reactivar con servicio técnico', devoluciones_altas: 'Revisar causas de devolución' };
+document.getElementById('t_segmentos').innerHTML =
+  '<tr><th>Segmento</th><th class="num">Clientes</th><th class="num">Gasto mediano</th><th class="num">Días sin comprar</th><th class="num">Devoluciones</th><th>Acción</th></tr>' +
+  D.segmentos.map(s => `<tr><td>${s.cluster.replaceAll('_', ' ')}</td><td class="num">${fmt(s.clientes)}</td>
+    <td class="num">${fmt(Math.round(s.gasto_mediano))} €</td><td class="num">${s.recencia_mediana}</td>
+    <td class="num">${Math.round(s.devoluciones_medias * 100)} %</td><td>${ACCION[s.cluster]}</td></tr>`).join('');
+
+document.getElementById('t_julio').innerHTML =
+  '<tr><th>Canal</th><th>Producto</th><th>Región</th><th class="num">Previsión</th><th class="num">Stock</th></tr>' +
+  D.julio.map(j => `<tr><td>${j.channel}</td><td>${j.product_line}</td><td>${j.region}</td>
+    <td class="num ${j.en_limite ? 'limite' : ''}">${j.predicted_sales_units}</td><td class="num">${j.stock_units}</td></tr>`).join('');
+</script>
+</body>
+</html>
