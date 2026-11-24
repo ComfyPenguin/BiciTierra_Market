@@ -77,7 +77,7 @@ Variables: gasto anual y pedidos (en logaritmo), días desde el último pedido, 
 | Ocasionales inactivos | 532 | ~216 €, 2 pedidos, casi 4 meses sin comprar | Reactivar con el servicio técnico |
 | Devoluciones altas | 174 | ~369 €, devuelven el 40 % | Revisar las causas |
 
-270 clientes (13,5 %) son fronterizos. Frente a la segmentación por reglas, K-Means separa a los clientes de valor alto que las reglas metían como o casionales y descubre el grupo de devoluciones.
+270 clientes (13,5 %) son fronterizos. Frente a la segmentación por reglas, K-Means separa a los clientes de valor alto que las reglas metían como ocasionales y descubre el grupo de devoluciones.
 
 ## 6. Recomendaciones
 
@@ -106,12 +106,19 @@ Ejecutar en orden `notebooks/01_eda.ipynb`, `02_modelatge_baseline.ipynb` y `03_
 uv run python src/panel.py
 ```
 
-El panel queda en `evidencies/panel.html`.
+El panel queda en `evidencies/panel.html`. Para la presentación de la defensa, primero se entrena y guarda el modelo y después se genera la presentación:
+
+```bash
+uv run python src/modelo.py entrenar
+uv run python src/presentacion.py
+```
+
+El modelo queda en `evidencies/modelo_ridge.joblib` y la presentación en `evidencies/presentacion.html`.
 
 ## 9. Reparto del trabajo
 
 | Miembro | Trabajo |
 |---|---|
 | Andy | Baseline por medias de grupo, notebook de métricas por campaña y región, cuaderno de seguimiento |
-| Dennis | EDA, ficha del CP1, preparación y modelado (notebook 02), segmentación, panel y memoria |
-| Guillem | *Pendiente de completar por el equipo* |
+| Dennis | EDA, ficha del CP1, preparación y modelado (notebook 02), presentación y memoria |
+| Guillem | Segmentación de clientes (notebook 03) y panel de resultados |

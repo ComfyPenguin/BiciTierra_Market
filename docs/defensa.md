@@ -7,8 +7,8 @@ Duración objetivo: **9 minutos** (máximo 10). Cada miembro presenta un bloque 
 | Bloque | Diapositivas | Quién | Tiempo |
 |---|---|---|---|
 | Problema, datos e hipótesis | 1–4 | Andy | 2:30 |
-| Modelo de ventas | 5–8 | Dennis | 3:30 |
-| Clientes, panel y cierre | 9–11 | Guillem | 3:00 |
+| Modelo de ventas | 5–9 | Dennis | 4:20 |
+| Clientes, panel y cierre | 10–12 | Guillem | 3:00 |
 
 ## Guion por diapositiva
 
@@ -26,13 +26,15 @@ Duración objetivo: **9 minutos** (máximo 10). Cada miembro presenta un bloque 
 
 **7 · Prueba final (0:50).** «Con el modelo congelado, lo probamos una sola vez en enero–junio de 2026: 16,1 bicis de error, un 13,5 %. Empeora respecto a 2025, que es lo normal con datos nuevos, pero sigue por debajo de la referencia. El fallo principal es que se queda corto, unas 14 bicis de media, porque en 2026 se vende más. El peor caso: abril, online, urbanas, región metro; predijimos 230 y se vendieron 328.»
 
-**8 · Julio y recomendación de stock (0:50).** «Para julio prevemos 2 398 bicis. Es una previsión, no un resultado: no tenemos la venta real. En tres series de tienda física la previsión llega al stock disponible, así que recomendamos subir su stock. Y como el modelo se queda corto, añadir un margen en online-metro y en urbanas. Confianza media.»
+**8 · Puesta en marcha (0:50).** «Así se entrena de verdad, con scikit-learn. Seguimos una fila: online, urbanas, costa, julio de 2022. En cada paso, una pulsación enseña cómo llegan los datos y otra, cómo salen. Primero la fila se separa: lo que se sabe antes del mes es X, las ventas son y, y los ingresos se quedan fuera. El modelo es un Pipeline. Primero, SimpleImputer rellena el presupuesto que falta con la mediana de entrenamiento. Después, OneHotEncoder convierte canal, línea, región y campaña en columnas de ceros y unos, y StandardScaler pone todo en la misma escala para que los euros no pesen más que los días. Ridge aprende un peso para cada una de las 29 columnas; alpha 100 frena los pesos grandes, y si lo subimos demasiado el modelo deja de aprender. La previsión es la media más la suma de lo que aporta cada columna. Todo se guarda en un archivo de 5 KB, y para julio solo se carga y se predice, sin volver a entrenar.»
 
-**9 · Clientes (1:00).** «Agrupamos los clientes con K-Means usando gasto, pedidos, días sin comprar, devoluciones y antigüedad. Salen cuatro perfiles: fieles veteranos y nuevos activos, que gastan unos 1 400 € al año; ocasionales inactivos, con unos 200 € y casi cuatro meses sin comprar; y un grupo pequeño que devuelve el 40 % de lo que compra. Para cada uno, una acción: fidelizar, dar la bienvenida al segundo año, reactivar con el servicio técnico y revisar las causas de las devoluciones.»
+**9 · Julio y recomendación de stock (0:50).** «Para julio prevemos 2 398 bicis. Es una previsión, no un resultado: no tenemos la venta real. En tres series de tienda física la previsión llega al stock disponible, así que recomendamos subir su stock. Y como el modelo se queda corto, añadir un margen en online-metro y en urbanas. Confianza media.»
 
-**10 · Demo del panel (1:15).** Abrir `evidencies/panel.html`. Señalar, por este orden: los indicadores de arriba; la gráfica mensual con la temporada y la previsión de julio en discontinua; la comparativa de modelos; la tabla de julio con las tres series en rojo; la tabla de segmentos.
+**10 · Clientes (1:00).** «Agrupamos los clientes con K-Means usando gasto, pedidos, días sin comprar, devoluciones y antigüedad. Salen cuatro perfiles: fieles veteranos y nuevos activos, que gastan unos 1 400 € al año; ocasionales inactivos, con unos 200 € y casi cuatro meses sin comprar; y un grupo pequeño que devuelve el 40 % de lo que compra. Para cada uno, una acción: fidelizar, dar la bienvenida al segundo año, reactivar con el servicio técnico y revisar las causas de las devoluciones.»
 
-**11 · Límites y cierre (0:45).** «Límites: datos sintéticos, así que una relación no demuestra una causa; la rotura de stock oculta demanda; el modelo se queda corto cuando las ventas crecen; y julio no se puede validar todavía. En resumen: un modelo sencillo y honesto que mejora un 31 % a la referencia, una recomendación de stock concreta y cuatro perfiles de cliente con acción. Gracias.»
+**11 · Demo del panel (1:15).** Abrir `evidencies/panel.html`. Señalar, por este orden: los indicadores de arriba; la gráfica mensual con la temporada y la previsión de julio en discontinua; la comparativa de modelos; la tabla de julio con las tres series en rojo; la tabla de segmentos.
+
+**12 · Límites y cierre (0:45).** «Límites: datos sintéticos, así que una relación no demuestra una causa; la rotura de stock oculta demanda; el modelo se queda corto cuando las ventas crecen; y julio no se puede validar todavía. En resumen: un modelo sencillo y honesto que mejora un 31 % a la referencia, una recomendación de stock concreta y cuatro perfiles de cliente con acción. Gracias.»
 
 ## Preguntas probables
 
@@ -82,6 +84,7 @@ Reentrenar con todo el histórico antes de predecir: con 2025 incluido el error 
 
 - [ ] Los tres notebooks se ejecutan de arriba abajo sin errores.
 - [ ] `uv run python src/panel.py` genera el panel y se abre en el portátil de la defensa.
+- [ ] `uv run python src/modelo.py entrenar` y después `uv run python src/presentacion.py` generan la presentación.
 - [ ] Cada miembro sabe explicar: la pregunta, la clave de una fila, entrenamiento / validación / prueba, por qué no usar `revenue` y un perfil de cliente.
 - [ ] Autoevaluación rellenada.
 - [ ] Ensayo cronometrado por debajo de 10 minutos.
