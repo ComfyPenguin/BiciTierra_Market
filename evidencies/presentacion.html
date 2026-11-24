@@ -113,7 +113,7 @@
   .conmutador button[aria-pressed="true"] { background:var(--superficie); color:var(--texto); box-shadow:0 1px 3px #0004; }
   .degradado { width:6rem; height:.6rem; border-radius:99px; display:inline-block; background:linear-gradient(in oklab 90deg, var(--seq-bajo), var(--seq-alto)); }
   .cuadro { width:.8rem; height:.8rem; border-radius:3px; background:var(--critico); display:inline-block; }
-  .mapa { flex:1; min-height:0; display:grid; grid-template-columns:10.5rem repeat(66, minmax(0, 1fr)); grid-template-rows:auto;
+  .mapa { flex:1; min-height:0; display:grid; grid-template-columns:max-content repeat(66, minmax(0, 1fr)); grid-template-rows:auto;
           grid-auto-rows:minmax(.7rem, 1fr); gap:2px; font-size:.72rem; }
   .mapa .c { border-radius:2px; background-color:color-mix(in oklab, var(--seq-alto) var(--v), var(--seq-bajo));
              transition:background-color .35s ease calc(var(--i) * 8ms); }
