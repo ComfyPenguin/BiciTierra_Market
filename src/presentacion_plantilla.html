@@ -26,9 +26,9 @@
   [hidden] { display:none !important; }
   html, body { margin:0; height:100%; overflow:hidden; background:var(--fondo); color:var(--texto); }
   /* Todo se mide en rem, y rem sale de la letra de <html>. Esa letra sigue al lado que limita:
-     el ancho en pantallas 16:9 y la altura en ventanas más bajas (barra del navegador, zoom del sistema).
+     el ancho en pantallas 16:9 o más altas (4:3, 16:10) y la altura en ventanas más anchas o bajas. Sin tope: en 4K crece igual.
      A 1600×900 vale 16 px; en cualquier otro tamaño la diapositiva se escala entera y nada se sale. */
-  html { font-size:clamp(10px, min(1vw, 1.78vh), 22px); }
+  html { font-size:max(10px, min(1vw, 1.78vh)); }
   body { font:400 1.1rem/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
   button { font:inherit; color:inherit; }
 
@@ -159,7 +159,7 @@
   .fila-barra .nombre { color:var(--texto-2); text-align:right; }
   .fila-barra.elegido .nombre { color:var(--texto); font-weight:700; }
   .pista-barra { display:flex; align-items:center; gap:.7rem; }
-  .barra { height:24px; width:0; background:var(--c); border-radius:0 4px 4px 0; transition:width 1.1s cubic-bezier(.2,.8,.2,1) var(--d); }
+  .barra { height:1.5rem; width:0; background:var(--c); border-radius:0 4px 4px 0; transition:width 1.1s cubic-bezier(.2,.8,.2,1) var(--d); }
   .diapo.actual .barra { width:var(--w); }
   .valor { font-variant-numeric:tabular-nums; font-weight:650; opacity:0; transition:opacity .4s ease calc(var(--d) + .8s); }
   .diapo.actual .valor { opacity:1; }
@@ -170,7 +170,7 @@
   .siete .cifras { grid-column:1 / -1; }
   .duelo { display:flex; flex-direction:column; gap:.6rem; }
   .duelo div { display:grid; grid-template-columns:5.5rem 1fr 3rem; align-items:center; gap:.6rem; color:var(--texto-2); font-size:.9rem; }
-  .duelo i { height:22px; border-radius:0 4px 4px 0; background:var(--c); width:0; transition:width 1s cubic-bezier(.2,.8,.2,1) .4s; }
+  .duelo i { height:1.4rem; border-radius:0 4px 4px 0; background:var(--c); width:0; transition:width 1s cubic-bezier(.2,.8,.2,1) .4s; }
   .diapo.actual .duelo i { width:var(--w); }
   .duelo b { color:var(--texto); text-align:right; font-variant-numeric:tabular-nums; }
 
