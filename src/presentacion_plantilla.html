@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BiciTierra Market · Defensa</title>
+<script>if (new URLSearchParams(location.search).has('presentador')) document.documentElement.classList.add('presentador');</script>
 <style>
   /* Colores por función: superficies y texto, tres series (urbana, montaña, eléctrica) y alerta */
   :root {
@@ -404,13 +405,49 @@
                         border:2px solid var(--texto-3); color:var(--texto); font-weight:800; font-size:.9rem; }
   .tres { display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; }
   .gracias { font-size:3.4rem; font-weight:800; letter-spacing:-.03em; line-height:1; }
+
+  /* Modo presentador (?presentador): notas para leer en el portátil a un brazo de distancia.
+     Tamaño fijo en px (no depende de la ventana) y el texto se encoge solo si no cabe, para no tener que desplazarse. */
+  html.presentador { font-size:16px; }
+  #pr { --accion:#f2a93b; position:fixed; inset:0; z-index:100; background:var(--fondo); display:grid;
+        grid-template-columns:minmax(0, 1fr) 17rem; grid-template-rows:auto 6px minmax(0, 1fr); gap:0 1.4rem; padding:.9rem 1.4rem 1rem; }
+  :root[data-tema="claro"] #pr { --accion:#9a5200; }
+  #pr header { grid-column:1 / -1; display:flex; align-items:center; gap:1rem; padding-bottom:.7rem; }
+  #pr .num { font-size:1.5rem; font-weight:750; color:var(--texto-3); font-variant-numeric:tabular-nums; }
+  #pr .tit { flex:1; min-width:0; font-size:1.6rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #pr .quien { font-size:1.15rem; font-weight:700; padding:.2rem .9rem; border-radius:99px; background:var(--superficie-2); }
+  #pr .crono { font-size:2.4rem; font-weight:750; font-variant-numeric:tabular-nums; }
+  #pr .crono small { font-size:1.1rem; font-weight:500; color:var(--texto-3); }
+  #pr .barra-t { grid-column:1 / -1; background:var(--superficie-2); border-radius:3px; overflow:hidden; }
+  #pr .barra-t i { display:block; height:100%; width:0; background:var(--serie1); transition:width .5s linear; }
+  #pr.excedido .crono, #pr .mal { color:var(--critico); }
+  #pr.excedido .barra-t i { background:var(--critico); }
+  #pr .ok { color:var(--serie3); }
+  #pr-texto { overflow:hidden; padding-top:1rem; line-height:1.4; font-weight:500; }
+  #pr-texto p { margin:0 0 .5em; }
+  #pr-texto .accion { font-size:.8em; font-weight:700; color:var(--accion); border-left:4px solid currentColor; padding:.1em 0 .1em .6em; }
+  /* Las acciones cortas («→ → paso 3») van como etiqueta al principio del párrafo, sin gastar una línea */
+  #pr-texto .accion.corta { display:inline-block; border:2px solid currentColor; border-radius:6px; padding:0 .35em; margin-right:.35em; }
+  #pr-texto .accion.ahora { background:var(--superficie-2); border-radius:0 6px 6px 0; }
+  #pr-texto .accion.corta.ahora { background:var(--accion); color:var(--fondo); border-color:var(--accion); border-radius:6px; }
+  #pr aside { display:flex; flex-direction:column; gap:.9rem; padding-top:1.2rem; min-height:0; overflow:auto; }
+  #pr .caja { background:var(--superficie); border:1px solid var(--borde); border-radius:12px; padding:.8rem 1rem; }
+  #pr .caja h3 { margin:0 0 .3rem; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--texto-3); }
+  #pr .grande { font-size:1.35rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  #pr .turno { margin-top:.3rem; font-size:1.1rem; font-weight:750; color:var(--accion); }
+  #pr .teclas { font-size:.9rem; color:var(--texto-2); line-height:1.7; }
+  @media (max-width:1000px) {
+    #pr { grid-template-columns:minmax(0, 1fr); grid-template-rows:auto 6px minmax(0, 1fr) auto; }
+    #pr aside { flex-direction:row; flex-wrap:wrap; overflow:visible; }
+    #pr aside .caja { flex:1 1 12rem; }
+  }
 </style>
 </head>
 <body>
 
 <!-- 1 · Portada -->
 <section class="diapo portada">
-  <p class="ayuda"><kbd>→</kbd> avanzar · <kbd>N</kbd> notas · <kbd>F</kbd> pantalla completa · <kbd>T</kbd> tema</p>
+  <p class="ayuda"><kbd>→</kbd> avanzar · <kbd>N</kbd> notas · <kbd>F</kbd> pantalla completa · <kbd>T</kbd> tema · <kbd>P</kbd> notas en otra ventana</p>
   <div class="ante">Proyecto de Machine Learning · CE IA y Big Data</div>
   <h1>BiciTierra<br>Market</h1>
   <p class="lead">Cómo anticipar las ventas de cada mes y conocer mejor a los clientes.</p>
@@ -1144,6 +1181,7 @@ joblib.<b>dump</b>(modelo, 'modelo_ridge.joblib')</pre>
   diapo.paso = d => { if (estado + d < 0 || estado + d > ULTIMO) return false; parar(); irEstado(estado + d); return true; };
   diapo.alEntrar = adelante => { parar(); irEstado(adelante ? 0 : ULTIMO); };
   diapo.alSalir = parar;
+  diapo.pasoTxt = () => estado ? `Paso ${paso} de ${paneles.length - 1} · ${estado % 2 ? 'antes' : 'después'}` : 'Inicio, sin pasos todavía';
   addEventListener('resize', colocar);
   irEstado(0);
 }
@@ -1309,6 +1347,131 @@ addEventListener('keydown', e => {
 });
 try { const t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.tema = t; } catch {}
 ir((parseInt(location.hash.slice(1)) || 1) - 1);
+</script>
+<script>
+// ---------- Modo presentador: la presentación en el proyector y las notas en el portátil ----------
+// La ventana de la proyección manda: decide la diapositiva y lleva el reloj. La de notas (P la abre) le reenvía
+// las teclas y le pregunta el estado cada medio segundo con postMessage, que funciona también abriendo el HTML
+// como archivo. Si la proyección se recarga, la ventana de notas se vuelve a enganchar sola.
+{
+  const NAVEGAR = ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ', 'Enter', 'Home', 'End', 'r', 'R'];
+  if (!document.documentElement.classList.contains('presentador')) {
+    addEventListener('message', e => {
+      if (e.data?.bici !== 'notas' || !e.source) return;
+      // La tecla se trata igual que si se hubiera pulsado aquí (incluidos los pasos de la diapositiva 8)
+      if (NAVEGAR.includes(e.data.tecla)) document.body.dispatchEvent(new KeyboardEvent('keydown', { key: e.data.tecla, bubbles: true }));
+      e.source.postMessage({ bici: 'proyeccion', i: actual, inicio, inicioDiapo, paso: diapos[actual].pasoTxt?.() ?? '' }, '*');
+    });
+    addEventListener('keydown', e => {
+      if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey)
+        open(location.href.split(/[?#]/)[0] + '?presentador', 'bicitierra-notas', 'popup,width=1280,height=800');
+    });
+  } else {
+    document.title = 'Notas · BiciTierra Market';
+    document.body.insertAdjacentHTML('beforeend', `<div id="pr">
+      <header><span class="num" id="pr-num"></span><span class="tit" id="pr-tit">Notas del presentador</span>
+        <span class="quien" id="pr-quien" hidden></span><span class="crono" id="pr-esta"></span></header>
+      <div class="barra-t"><i id="pr-barra"></i></div>
+      <div id="pr-texto"><p>Esta ventana enseña las notas. Abre la presentación y pulsa <b>P</b>.</p></div>
+      <aside>
+        <div class="caja"><h3>Siguiente</h3><div class="grande" id="pr-sig">—</div><div class="turno" id="pr-turno"></div></div>
+        <div class="caja"><h3>Tiempo total</h3><div class="grande" id="pr-total">—</div><div id="pr-plan"></div></div>
+        <div class="caja" id="pr-paso-caja" hidden><h3>Entrenamiento</h3><div class="grande" id="pr-paso"></div></div>
+        <div class="caja"><h3>Teclas</h3><div class="teclas"><kbd>→</kbd> <kbd>←</kbd> o el mando: avanzar y retroceder<br>
+          <kbd>+</kbd> <kbd>−</kbd> tamaño de la letra · <kbd>R</kbd> reloj a cero<br><kbd>F</kbd> pantalla completa</div>
+          <div id="pr-con" style="margin-top:.5rem"></div></div>
+      </aside></div>`);
+    const total = Object.keys(D.notas).length;
+    const plan = [0];  // plan[k − 1] = minuto en que debería empezar la diapositiva k, según el guion
+    for (let k = 1; k <= total; k++) plan.push(plan[k - 1] + segundos(D.notas[k].tiempo));
+    const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+    let est = null, ultima = 0, base = 30;
+    try { base = +localStorage.getItem('letraNotas') || 30; } catch {}
+
+    // Empieza en el tamaño elegido y lo baja píxel a píxel hasta que la nota entera cabe sin desplazarse
+    function ajustar() {
+      const caja = $('#pr-texto');
+      let px = base;
+      caja.style.fontSize = `${px}px`;
+      while (caja.scrollHeight > caja.clientHeight && px > 16) caja.style.fontSize = `${--px}px`;
+    }
+    // Lo que se dice va en párrafos; lo que se hace ([…] en el guion) en líneas de color aparte
+    function pintar() {
+      const k = est.i + 1, nota = D.notas[k], sig = D.notas[k + 1];
+      $('#pr-num').textContent = `${k} / ${total}`;
+      $('#pr-tit').textContent = nota.titulo;
+      $('#pr-quien').hidden = false;
+      $('#pr-quien').textContent = nota.quien;
+      // Cada párrafo recuerda a qué paso pertenece («[→ → paso 3.]» abre el tramo 3; antes del primero, tramo 0)
+      let html = '', etiqueta = '', tramo = 0;
+      for (const x of nota.texto.replaceAll('`', '').split(/(\[[^\]]+\])/).map(x => x.trim()).filter(Boolean)) {
+        const accion = x.startsWith('[') ? esc(x.slice(1, -1)) : null;
+        if (accion && accion.length <= 20) {
+          etiqueta = `<span class="accion corta">${accion}</span>`;
+          tramo = +(accion.match(/paso (\d+)/)?.[1] ?? tramo);
+        } else if (accion) {
+          html += `${etiqueta ? `<p data-tramo="${tramo}">${etiqueta}</p>` : ''}<p class="accion" data-tramo="${tramo}">${accion}</p>`;
+          etiqueta = '';
+        } else { html += `<p data-tramo="${tramo}">${etiqueta}${esc(x.replace(/^«|»$/g, ''))}</p>`; etiqueta = ''; }
+      }
+      $('#pr-texto').innerHTML = html + (etiqueta ? `<p data-tramo="${tramo}">${etiqueta}</p>` : '');
+      $('#pr-sig').textContent = sig ? `${k + 1} · ${sig.titulo}` : 'Turno de preguntas';
+      $('#pr-turno').textContent = sig && sig.quien !== nota.quien ? `Cambio de turno → ${sig.quien}` : '';
+      mostrarTramo(tramoDe(est.paso));
+    }
+    // En la diapositiva con pasos (la 8) solo se enseña el texto del paso actual: así cabe con letra grande
+    const tramoDe = paso => paso.match(/Paso (\d+)/)?.[1] ?? '0';
+    let tramoVisto = null;
+    function mostrarTramo(n) {
+      tramoVisto = n;
+      const parrafos = [...document.querySelectorAll('#pr-texto [data-tramo]')];
+      const conPasos = parrafos.some(x => x.dataset.tramo !== '0');
+      parrafos.forEach(x => { x.hidden = conPasos && x.dataset.tramo !== n; });
+      ajustar();
+    }
+    function relojes() {
+      const conectado = est && Date.now() - ultima < 1500;
+      $('#pr-con').className = conectado ? 'ok' : 'mal';
+      $('#pr-con').textContent = conectado ? '● Conectada con la proyección' : '● Sin conexión: pulsa P en la ventana de la presentación';
+      if (!est) return;
+      const k = est.i + 1, objetivo = segundos(D.notas[k].tiempo);
+      const aqui = (Date.now() - est.inicioDiapo) / 1000, todo = (Date.now() - est.inicio) / 1000;
+      $('#pr-esta').innerHTML = `${reloj(aqui)} <small>/ ${D.notas[k].tiempo}</small>`;
+      $('#pr').classList.toggle('excedido', aqui > objetivo);
+      $('#pr-barra').style.width = `${Math.min(100, 100 * aqui / objetivo)}%`;
+      $('#pr-total').textContent = reloj(todo);
+      const ini = plan[k - 1], fin = plan[k];
+      $('#pr-plan').innerHTML = `Plan: de ${reloj(ini)} a ${reloj(fin)} · ` + (todo > fin ? `<b class="mal">vas ${reloj(todo - fin)} tarde</b>`
+        : todo < ini ? `vas ${reloj(ini - todo)} adelantado` : '<span class="ok">en hora</span>');
+      $('#pr-paso-caja').hidden = !est.paso;
+      $('#pr-paso').textContent = est.paso;
+      if (tramoDe(est.paso) !== tramoVisto) mostrarTramo(tramoDe(est.paso));
+      const n = est.paso.match(/Paso (\d+)/)?.[1];  // resalta la etiqueta «→ → paso N» del paso actual
+      document.querySelectorAll('#pr-texto .accion').forEach(a => a.classList.toggle('ahora', !!n && a.textContent.includes(`paso ${n}.`)));
+    }
+    addEventListener('message', e => {
+      if (e.data?.bici !== 'proyeccion') return;
+      const cambia = est?.i !== e.data.i;
+      est = e.data; ultima = Date.now();
+      if (cambia) pintar();
+      relojes();
+    });
+    const avisar = tecla => { try { opener?.postMessage({ bici: 'notas', tecla }, '*'); } catch {} };
+    addEventListener('keydown', e => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (NAVEGAR.includes(e.key)) { e.preventDefault(); avisar(e.key); }
+      const d = { '+': 2, '=': 2, '-': -2 }[e.key];
+      if (d) {
+        base = Math.max(18, Math.min(48, base + d));
+        try { localStorage.setItem('letraNotas', base); } catch {}
+        if (est) ajustar();
+      }
+    });
+    addEventListener('resize', () => est && ajustar());
+    setInterval(() => { avisar(); relojes(); }, 500);
+    avisar(); relojes();
+  }
+}
 </script>
 </body>
 </html>
